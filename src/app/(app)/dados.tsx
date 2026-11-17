@@ -48,7 +48,7 @@ function Die({ value, faces, size, rolling, color }: { value: number; faces: num
   }
   return (
     <View style={[box, { alignItems: 'center', justifyContent: 'center' }]}>
-      <Display color={onPlayerColor} style={{ fontSize: size * 0.4, lineHeight: size * 0.44 }}>
+      <Display color={onPlayerColor} style={{ fontSize: size * 0.4, lineHeight: size * 0.48 }}>
         {value}
       </Display>
       <Label color={onPlayerColor} style={{ position: 'absolute', bottom: 8, right: 12, fontSize: 11 }}>
@@ -117,7 +117,7 @@ export default function Dados() {
               {values.join(' · ')}
             </Label>
           </View>
-          <Display color={c.inverseInk} style={{ fontSize: 54, lineHeight: 56 }}>
+          <Display color={c.inverseInk} style={{ fontSize: 54, lineHeight: 65 }}>
             {total}
           </Display>
         </Row>

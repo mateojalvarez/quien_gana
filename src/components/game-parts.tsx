@@ -96,7 +96,7 @@ export function WinnerBanner({
         <Clay name="corona" size={76} />
         <View style={{ flex: 1, gap: 2 }}>
           <Label color={palette.mostaza}>Partida terminada</Label>
-          <Display color={palette.marfil} style={{ fontSize: 36, lineHeight: 38 }} numberOfLines={1}>
+          <Display color={palette.marfil} style={{ fontSize: 36, lineHeight: 43 }} numberOfLines={1}>
             ¡Ganó {name}!
           </Display>
           <Num color={palette.marfil} style={{ fontSize: 16, fontFamily: fonts.medium }}>
@@ -170,7 +170,7 @@ export function StandingsList({
         <Clay name="trofeo" size={140} style={{ position: 'absolute', right: -2, top: -22 }} />
         <View style={{ padding: space.xl, gap: 2 }}>
           <Label color={onPlayerColor}>{leaderKicker}</Label>
-          <Display color={onPlayerColor} style={{ fontSize: 38, lineHeight: 40, maxWidth: 200 }} numberOfLines={1}>
+          <Display color={onPlayerColor} style={{ fontSize: 38, lineHeight: 46, maxWidth: 200 }} numberOfLines={1}>
             {leader.player.name}
           </Display>
           <Row style={{ gap: 6 }}>
@@ -301,7 +301,7 @@ export function BonusCard({ title, kicker, note, clay }: { title: string; kicker
       <Clay name={clay ?? 'cinta'} size={110} style={{ position: 'absolute', right: -2, top: -12 }} />
       <View style={{ padding: space.xl, gap: 2 }}>
         <Label color={onPlayerColor}>{kicker}</Label>
-        <Display color={onPlayerColor} style={{ fontSize: 27, lineHeight: 29 }}>
+        <Display color={onPlayerColor} style={{ fontSize: 27, lineHeight: 32 }}>
           {title}
         </Display>
         {note ? (

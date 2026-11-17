@@ -72,7 +72,7 @@ export default function Reloj() {
     >
       <Card color={cardColor} big style={{ marginTop: space.lg, paddingVertical: space.xxl, alignItems: 'center' }}>
         <Clay name="relojArena" size={132} style={{ transform: [{ rotate: done ? '180deg' : '0deg' }] }} />
-        <Display color={onPlayerColor} style={{ fontSize: 76, lineHeight: 80, marginTop: space.md, letterSpacing: -2.5 }}>
+        <Display color={onPlayerColor} style={{ fontSize: 76, lineHeight: 91, marginTop: space.lg, letterSpacing: -2.5 }}>
           {fmt(remaining)}
         </Display>
         <Label color={onPlayerColor} style={{ fontSize: 15 }}>

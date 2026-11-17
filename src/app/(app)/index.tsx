@@ -72,13 +72,15 @@ export default function Hub() {
 
   const goTo = (y: number) => scroller.current?.scrollTo({ y: Math.max(0, y - 12), animated: true });
 
+  // El safe area va en el contenedor, no en el contentContainer: si no, al scrollear
+  // las cards pasan por detras de la barra de estado y chocan con la hora.
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
       <ScrollView
         ref={scroller}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
-          paddingTop: insets.top + space.lg,
+          paddingTop: space.lg,
           paddingHorizontal: space.xl,
           paddingBottom: insets.bottom + 110,
         }}
@@ -126,7 +128,7 @@ export default function Hub() {
             <View style={{ padding: space.xl, flex: 1, justifyContent: 'space-between' }}>
               <View style={{ gap: 2 }}>
                 <Label color={onPlayerColor}>Partida en curso</Label>
-                <Display style={{ fontSize: 34, lineHeight: 36, maxWidth: 220 }} color={onPlayerColor} numberOfLines={1}>
+                <Display style={{ fontSize: 34, lineHeight: 41, maxWidth: 220 }} color={onPlayerColor} numberOfLines={1}>
                   {enCurso.title}
                 </Display>
                 <Label color={onPlayerColor} style={{ fontFamily: fonts.medium, fontSize: 14 }}>
@@ -179,7 +181,12 @@ export default function Hub() {
 
         {/* Tus juegos */}
         <View onLayout={(e) => (yJuegos.current = e.nativeEvent.layout.y)} style={{ marginTop: space.xxl }}>
-          <SectionHead title="Tus juegos" meta={`${tools.length} de ${TOOLS.length}`} />
+          {/* El clay de las cards cortas sobresale 18px hacia arriba: sin este aire extra pisa el meta. */}
+          <SectionHead
+            title="Tus juegos"
+            meta={`${tools.length} de ${TOOLS.length}`}
+            style={{ marginBottom: space.huge }}
+          />
           <Row style={{ alignItems: 'flex-start', gap: space.md }}>
             {[0, 1].map((col) => (
               <View key={col} style={{ flex: 1, gap: space.md }}>

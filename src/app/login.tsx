@@ -91,7 +91,7 @@ export default function Login() {
 
         <View style={{ marginTop: space.xxl, gap: space.sm }}>
           <Label>Anotadores, dados y pulsadores</Label>
-          <Display style={{ fontSize: 46, lineHeight: 47 }}>¿Quién gana?</Display>
+          <Display style={{ fontSize: 46, lineHeight: 55 }}>¿Quién gana?</Display>
         </View>
       </View>
 

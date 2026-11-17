@@ -33,7 +33,7 @@ export function Display({ style, color, ...p }: TProps) {
     <Text
       {...p}
       style={[
-        { fontFamily: fonts.black, fontSize: 40, lineHeight: 42, letterSpacing: -1.1, color: color ?? c.ink },
+        { fontFamily: fonts.black, fontSize: 40, lineHeight: 48, letterSpacing: -1.1, color: color ?? c.ink },
         style,
       ]}
     />

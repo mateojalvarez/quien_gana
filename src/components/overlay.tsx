@@ -148,7 +148,7 @@ function SheetLayer({ sheet, onClose }: { sheet: Sheet; onClose: (v: boolean, af
 
         <View style={{ gap: space.sm }}>
           {title ? (
-            <Display style={{ fontSize: 28, lineHeight: 32, letterSpacing: -0.7 }} numberOfLines={3}>
+            <Display style={{ fontSize: 28, lineHeight: 34, letterSpacing: -0.7 }} numberOfLines={3}>
               {title}
             </Display>
           ) : null}
