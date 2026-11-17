@@ -34,6 +34,30 @@ export function config(game: CorazonesGame) {
   };
 }
 
+/** Jugadores admitidos en una partida de Corazones. */
+export const LIMITS = { minPlayers: 2, maxPlayers: 8 } as const;
+
+/**
+ * El mazo es el que manda: para jugar `rounds` rondas completas hacen falta
+ * `rounds × jugadores` cartas, y hay `52 × decks` disponibles. De ahí salen los
+ * tres límites, que son la misma desigualdad despejada en cada variable.
+ */
+export function maxPlayersFor(rounds: number, decks: number) {
+  const fit = Math.floor((RULES.cardsPerDeck * decks) / Math.max(1, rounds));
+  return Math.min(LIMITS.maxPlayers, Math.max(LIMITS.minPlayers, fit));
+}
+
+/** Rondas que entran con esa cantidad de jugadores y mazos. */
+export function maxRoundsFor(players: number, decks: number) {
+  if (players <= 0) return 1;
+  return Math.max(1, Math.floor((RULES.cardsPerDeck * decks) / players));
+}
+
+/** Mazos mínimos para repartir `rounds` rondas entre `players` jugadores. */
+export function minDecksFor(players: number, rounds: number) {
+  return Math.max(1, Math.ceil((players * rounds) / RULES.cardsPerDeck));
+}
+
 /** Máximo de cartas que se pueden repartir por ronda. */
 export function maxCards(players: number, decks: number) {
   if (players <= 0) return 0;

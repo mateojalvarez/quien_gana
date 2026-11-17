@@ -20,14 +20,18 @@ import {
   Stepper,
   Tag,
 } from '@/components/ui';
-import { DEFAULTS, maxCards } from '@/features/corazones/rules';
+import { Reorderable } from '@/components/reorderable';
+import { DEFAULTS, LIMITS, maxCards, maxPlayersFor, maxRoundsFor } from '@/features/corazones/rules';
 import type { GameKind } from '@/features/types';
 import { haptic } from '@/lib/haptics';
+import { uid } from '@/lib/id';
 import { useGames } from '@/store/games';
 import { border, fonts, onPlayerColor, palette, playerColor, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
-const MAX_PLAYERS = 8;
+/** El anotador no reparte cartas, así que su tope es sólo de practicidad. */
+const MAX_PLAYERS_ANOTADOR = 8;
+const ROW_H = 58;
 
 export default function NuevaPartida() {
   const { kind: kindParam } = useLocalSearchParams<{ kind?: string }>();
@@ -36,16 +40,46 @@ export default function NuevaPartida() {
   const create = useGames((s) => s.create);
 
   const [title, setTitle] = useState('');
-  const [players, setPlayers] = useState<string[]>(['', '']);
+  const [players, setPlayers] = useState<{ id: string; name: string }[]>(() => [
+    { id: uid(), name: '' },
+    { id: uid(), name: '' },
+  ]);
   const [target, setTarget] = useState<number | null>(kind === 'anotador' ? 100 : null);
   const [lowestWins, setLowestWins] = useState(false);
   const [totalRounds, setTotalRounds] = useState<number>(DEFAULTS.totalRounds);
   const [decks, setDecks] = useState<number>(DEFAULTS.decks);
   const [bonusFromRound, setBonusFromRound] = useState<number>(DEFAULTS.bonusFromRound);
 
-  const named = players.map((p) => p.trim()).filter(Boolean);
+  const named = players.map((p) => p.name.trim()).filter(Boolean);
   const cards = maxCards(named.length, decks);
   const canCreate = named.length >= 2;
+
+  // En Corazones el mazo manda: `rondas × jugadores` cartas tienen que entrar en
+  // `52 × mazos`. El tope de jugadores sale de ahí, y el de rondas es el mismo
+  // límite visto desde el otro lado, para no dejar la partida en un estado que
+  // no se puede repartir.
+  const maxPlayers = kind === 'corazones' ? maxPlayersFor(totalRounds, decks) : MAX_PLAYERS_ANOTADOR;
+  const maxRounds = Math.min(30, maxRoundsFor(players.length, decks));
+
+  function setPlayerName(id: string, name: string) {
+    setPlayers((ps) => ps.map((p) => (p.id === id ? { ...p, name } : p)));
+  }
+
+  function movePlayer(from: number, to: number) {
+    setPlayers((ps) => {
+      const next = ps.slice();
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    haptic.success();
+  }
+
+  /** Bajar mazos puede dejar las rondas sin cartas: se recortan a lo que entre. */
+  function changeDecks(d: number) {
+    setDecks(d);
+    setTotalRounds((r) => Math.min(r, maxRoundsFor(players.length, d)));
+  }
 
   function submit() {
     const fallbackTitle = `${kind === 'anotador' ? 'Partida' : 'Corazones'} ${new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}`;
@@ -92,13 +126,18 @@ export default function NuevaPartida() {
       />
 
       <View style={{ marginTop: space.xxl }}>
-        <SectionHead title="Jugadores" meta={`${named.length} de ${MAX_PLAYERS}`} />
-        <View style={{ gap: space.sm }}>
-          {players.map((name, i) => (
+        <SectionHead title="Jugadores" meta={`${named.length} de ${maxPlayers}`} />
+        <Reorderable
+          items={players}
+          keyOf={(p) => p.id}
+          rowHeight={ROW_H}
+          gap={space.sm}
+          onReorder={movePlayer}
+          renderItem={({ id, name }, i) => (
             <Row
-              key={i}
               style={{
-                minHeight: 58,
+                height: ROW_H,
+                backgroundColor: c.bg,
                 borderRadius: radius.field,
                 borderWidth: border,
                 borderColor: c.lineStrong,
@@ -111,7 +150,7 @@ export default function NuevaPartida() {
               <Avatar name={name || `${i + 1}`} color={playerColor(i, scheme)} size={34} />
               <TextInput
                 value={name}
-                onChangeText={(v) => setPlayers((ps) => ps.map((p, j) => (j === i ? v : p)))}
+                onChangeText={(v) => setPlayerName(id, v)}
                 placeholder={`Jugador ${i + 1}`}
                 placeholderTextColor={c.muted}
                 style={{ flex: 1, fontFamily: fonts.semibold, fontSize: 17, color: c.ink, paddingVertical: space.md }}
@@ -126,7 +165,7 @@ export default function NuevaPartida() {
                   hitSlop={6}
                   onPress={() => {
                     haptic.tap();
-                    setPlayers((ps) => ps.filter((_, j) => j !== i));
+                    setPlayers((ps) => ps.filter((p) => p.id !== id));
                   }}
                   style={({ pressed }) => ({ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}
                 >
@@ -134,14 +173,16 @@ export default function NuevaPartida() {
                 </Pressable>
               ) : null}
             </Row>
-          ))}
+          )}
+        />
 
-          {players.length < MAX_PLAYERS ? (
+        <View style={{ marginTop: space.sm }}>
+          {players.length < maxPlayers ? (
             <Pressable
               accessibilityRole="button"
               onPress={() => {
                 haptic.tap();
-                setPlayers((ps) => [...ps, '']);
+                setPlayers((ps) => [...ps, { id: uid(), name: '' }]);
               }}
               style={({ pressed }) => ({
                 height: 54,
@@ -161,6 +202,12 @@ export default function NuevaPartida() {
                 Agregar jugador
               </Label>
             </Pressable>
+          ) : kind === 'corazones' ? (
+            <Body color={c.muted} style={{ fontSize: 13.5, lineHeight: 19 }}>
+              {maxPlayers === LIMITS.maxPlayers
+                ? `Son ${LIMITS.maxPlayers} jugadores como máximo.`
+                : `Con ${totalRounds} rondas y ${decks} mazo${decks > 1 ? 's' : ''} entran ${maxPlayers} jugadores. Para sumar más, bajá las rondas o sumá un mazo.`}
+            </Body>
           ) : null}
         </View>
       </View>
@@ -175,7 +222,7 @@ export default function NuevaPartida() {
                 <Label color={onPlayerColor} style={{ fontSize: 14 }}>
                   Rondas
                 </Label>
-                <Stepper value={totalRounds} onChange={setTotalRounds} min={1} max={30} size={36} onColored />
+                <Stepper value={totalRounds} onChange={setTotalRounds} min={1} max={maxRounds} size={36} onColored />
               </Card>
               <Card color={palette.rosa} style={{ flex: 1, padding: space.lg, gap: space.md }}>
                 <Label color={onPlayerColor} style={{ fontSize: 14 }}>
@@ -199,11 +246,11 @@ export default function NuevaPartida() {
                 { value: 2, label: '2 mazos' },
               ]}
               value={decks}
-              onChange={setDecks}
+              onChange={changeDecks}
             />
             <Body color={c.muted} style={{ fontSize: 13.5, lineHeight: 19, marginTop: space.sm }}>
               {named.length >= 2
-                ? `Con ${named.length} jugadores y ${decks} mazo${decks > 1 ? 's' : ''}: hasta ${cards} cartas por ronda. Acertar paga 10 + las bazas hechas; desde la ronda ${Math.min(bonusFromRound, totalRounds)}, 20 + las bazas.`
+                ? `Con ${named.length} jugadores y ${decks} mazo${decks > 1 ? 's' : ''}: hasta ${cards} cartas por ronda y ${maxRounds} rondas. Acertar paga 10 + las bazas hechas; desde la ronda ${Math.min(bonusFromRound, totalRounds)}, 20 + las bazas.`
                 : 'La ronda 1 se juega con una carta y va subiendo hasta el máximo que dan los mazos.'}
             </Body>
           </>
