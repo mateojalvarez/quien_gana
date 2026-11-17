@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "¿Quién gana?",
+    "slug": "quien-gana",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icono/icono-tinta.png",
+    "scheme": "quiengana",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.mateoalvarez.quiengana",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "usesAppleSignIn": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "es",
+        "CFBundleLocalizations": [
+          "es"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.mateoalvarez.quiengana",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#141414",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-apple-authentication",
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F6F4EF",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 220,
+          "dark": {
+            "backgroundColor": "#141414",
+            "image": "./assets/images/splash-icon.png"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "d7eeec5e-75af-47fa-b14d-ec53cf90f2fe"
+      },
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      }
+    },
+    "owner": "mateojalvarez"
+  }
+}
