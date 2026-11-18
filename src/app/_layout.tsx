@@ -11,6 +11,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OverlayProvider } from '@/components/overlay';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
@@ -64,9 +65,13 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  // GestureHandlerRootView tiene que envolver todo: sin él, cualquier
+  // GestureDetector (el reordenar jugadores, por ejemplo) tira error de render.
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

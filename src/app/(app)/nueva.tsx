@@ -21,7 +21,7 @@ import {
   Tag,
 } from '@/components/ui';
 import { Reorderable } from '@/components/reorderable';
-import { DEFAULTS, LIMITS, maxCards, maxPlayersFor, maxRoundsFor } from '@/features/corazones/rules';
+import { DEFAULTS, LIMITS, maxCards } from '@/features/corazones/rules';
 import type { GameKind } from '@/features/types';
 import { haptic } from '@/lib/haptics';
 import { uid } from '@/lib/id';
@@ -54,12 +54,10 @@ export default function NuevaPartida() {
   const cards = maxCards(named.length, decks);
   const canCreate = named.length >= 2;
 
-  // En Corazones el mazo manda: `rondas × jugadores` cartas tienen que entrar en
-  // `52 × mazos`. El tope de jugadores sale de ahí, y el de rondas es el mismo
-  // límite visto desde el otro lado, para no dejar la partida en un estado que
-  // no se puede repartir.
-  const maxPlayers = kind === 'corazones' ? maxPlayersFor(totalRounds, decks) : MAX_PLAYERS_ANOTADOR;
-  const maxRounds = Math.min(30, maxRoundsFor(players.length, decks));
+  // Las rondas no limitan a los jugadores ni al revés: cada ronda se reparte de
+  // nuevo, así que jugadores y mazos sólo definen el máximo de bazas por ronda.
+  const maxPlayers = kind === 'corazones' ? LIMITS.maxPlayers : MAX_PLAYERS_ANOTADOR;
+  const maxRounds = LIMITS.maxRounds;
 
   function setPlayerName(id: string, name: string) {
     setPlayers((ps) => ps.map((p) => (p.id === id ? { ...p, name } : p)));
@@ -73,12 +71,6 @@ export default function NuevaPartida() {
       return next;
     });
     haptic.success();
-  }
-
-  /** Bajar mazos puede dejar las rondas sin cartas: se recortan a lo que entre. */
-  function changeDecks(d: number) {
-    setDecks(d);
-    setTotalRounds((r) => Math.min(r, maxRoundsFor(players.length, d)));
   }
 
   function submit() {
@@ -204,9 +196,7 @@ export default function NuevaPartida() {
             </Pressable>
           ) : kind === 'corazones' ? (
             <Body color={c.muted} style={{ fontSize: 13.5, lineHeight: 19 }}>
-              {maxPlayers === LIMITS.maxPlayers
-                ? `Son ${LIMITS.maxPlayers} jugadores como máximo.`
-                : `Con ${totalRounds} rondas y ${decks} mazo${decks > 1 ? 's' : ''} entran ${maxPlayers} jugadores. Para sumar más, bajá las rondas o sumá un mazo.`}
+              {`Son ${LIMITS.maxPlayers} jugadores como máximo.`}
             </Body>
           ) : null}
         </View>
@@ -246,11 +236,13 @@ export default function NuevaPartida() {
                 { value: 2, label: '2 mazos' },
               ]}
               value={decks}
-              onChange={changeDecks}
+              onChange={setDecks}
             />
             <Body color={c.muted} style={{ fontSize: 13.5, lineHeight: 19, marginTop: space.sm }}>
               {named.length >= 2
-                ? `Con ${named.length} jugadores y ${decks} mazo${decks > 1 ? 's' : ''}: hasta ${cards} cartas por ronda y ${maxRounds} rondas. Acertar paga 10 + las bazas hechas; desde la ronda ${Math.min(bonusFromRound, totalRounds)}, 20 + las bazas.`
+                ? `Con ${named.length} jugadores y ${decks} mazo${decks > 1 ? 's' : ''}: hasta ${cards} cartas por ronda${
+                    totalRounds > cards ? `, y las últimas ${totalRounds - cards} se juegan con ${cards}` : ''
+                  }. Acertar paga 10 + las bazas hechas; desde la ronda ${Math.min(bonusFromRound, totalRounds)}, 20 + las bazas.`
                 : 'La ronda 1 se juega con una carta y va subiendo hasta el máximo que dan los mazos.'}
             </Body>
           </>
