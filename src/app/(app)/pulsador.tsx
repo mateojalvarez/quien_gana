@@ -156,8 +156,12 @@ function Arena({ players, mode, onExit }: { players: number; mode: Mode; onExit:
         }}
       >
         <Label color={onPlayerColor}>Jugador {i + 1}</Label>
+        {/* "¡Primero!" no entra en el ancho de la zona: una sola línea que se achica sola. */}
         <Display
           color={onPlayerColor}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}
           style={{ fontSize: isWinner ? 46 : 38, lineHeight: isWinner ? 55 : 46, textAlign: 'center' }}
         >
           {caption}
