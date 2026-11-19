@@ -15,11 +15,22 @@ import { useAuth } from '@/providers/auth-provider';
 import { onPlayerColor, palette, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
+/**
+ * La RPC `preview_group_invite` devuelve vacío tanto si el código no existe
+ * como si la invitación venció, así que un solo texto tiene que cubrir los dos
+ * casos sin mentir en ninguno.
+ */
+const NO_ENCONTRADO = {
+  titulo: 'No se pudo encontrar el grupo',
+  detalle:
+    'El código puede estar mal copiado, o la invitación puede haber vencido: duran 7 días. Pedile al grupo que te mande una nueva.',
+};
+
 type Estado =
   | { paso: 'cargando' }
   | { paso: 'lista'; preview: InvitePreview }
   | { paso: 'uniendo' }
-  | { paso: 'error'; titulo: string; detalle: string };
+  | { paso: 'error'; titulo: string; detalle: string; accion?: 'perfil' };
 
 export default function Unirse() {
   const { code: raw } = useLocalSearchParams<{ code: string }>();
@@ -33,7 +44,11 @@ export default function Unirse() {
   const [estado, setEstado] = useState<Estado>(() =>
     code
       ? { paso: 'cargando' }
-      : { paso: 'error', titulo: 'Enlace inválido', detalle: 'Ese enlace no tiene un código de invitación.' },
+      : {
+          paso: 'error',
+          titulo: 'No se pudo encontrar el grupo',
+          detalle: 'Ese enlace no tiene un código de invitación. Fijate de haberlo copiado entero.',
+        },
   );
 
   useEffect(() => {
@@ -47,8 +62,8 @@ export default function Unirse() {
             ? { paso: 'lista', preview: p }
             : {
                 paso: 'error',
-                titulo: 'La invitación venció',
-                detalle: 'Las invitaciones duran 7 días. Pedile al grupo que te mande una nueva.',
+                titulo: NO_ENCONTRADO.titulo,
+                detalle: NO_ENCONTRADO.detalle,
               },
         );
       })
@@ -66,15 +81,14 @@ export default function Unirse() {
     setEstado({ paso: 'uniendo' });
     const r = await joinByCode(code);
     if ('error' in r) {
-      const textos: Record<typeof r.error, { titulo: string; detalle: string }> = {
+      const textos: Record<typeof r.error, { titulo: string; detalle: string; accion?: 'perfil' }> = {
         necesita_cuenta: {
           titulo: 'Primero vinculá una cuenta',
-          detalle: 'Como invitado todo vive sólo en este teléfono. Vinculá Apple o Google desde Perfil y volvé a abrir el enlace.',
+          detalle:
+            'Como invitado todo vive sólo en este teléfono. Vinculá Apple o Google desde Perfil y volvé a abrir el enlace.',
+          accion: 'perfil',
         },
-        invitacion_invalida: {
-          titulo: 'La invitación venció',
-          detalle: 'Las invitaciones duran 7 días. Pedile al grupo que te mande una nueva.',
-        },
+        invitacion_invalida: NO_ENCONTRADO,
         desconocido: { titulo: 'No se pudo entrar', detalle: 'Revisá la conexión y probá de nuevo.' },
       };
       setEstado({ paso: 'error', ...textos[r.error] });
@@ -100,9 +114,9 @@ export default function Unirse() {
             {estado.detalle}
           </Body>
           <Button
-            label={estado.titulo.includes('cuenta') ? 'Ir a Perfil' : 'Volver al inicio'}
+            label={estado.accion === 'perfil' ? 'Ir a Perfil' : 'Volver al inicio'}
             style={{ marginTop: space.sm }}
-            onPress={() => router.replace(estado.titulo.includes('cuenta') ? '/perfil' : '/')}
+            onPress={() => router.replace(estado.accion === 'perfil' ? '/perfil' : '/')}
           />
         </View>
       ) : (

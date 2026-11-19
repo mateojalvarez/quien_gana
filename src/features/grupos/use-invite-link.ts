@@ -7,13 +7,20 @@ import { codeFromInput } from './types';
 
 const CLAVE = 'qg-invitacion-pendiente';
 
-/** `https://quien-gana.app/g/ABC` o `quiengana://g/ABC` → el código. */
+/**
+ * `https://quien-gana.app/g/ABC` o `quiengana://g/ABC` → el código.
+ *
+ * Un código mal copiado NO se descarta acá: se pasa igual a la pantalla, que
+ * avisa que no encontró el grupo. Descartarlo en silencio era peor, porque el
+ * enlace abría la app y no pasaba nada.
+ */
 function codeFromUrl(url: string): string | null {
   const { path } = Linking.parse(url);
   if (!path) return null;
   const partes = path.replace(/^\/+/, '').split('/');
   if (partes[0] !== 'g' || !partes[1]) return null;
-  return codeFromInput(partes[1]);
+  const bruto = partes[1].replace(/[^0-9A-Za-z-]/g, '').slice(0, 24);
+  return codeFromInput(bruto) ?? (bruto || null);
 }
 
 /**
