@@ -1,12 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Animated, BackHandler, Easing, Pressable, Text, View } from 'react-native';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Animated, BackHandler, Easing, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/haptics';
 import { border, fonts, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 import { Icon, type IconName } from './icons';
-import { Body, Button, Display, Label } from './ui';
+import { Body, Button, Display, Field, Label } from './ui';
 
 /**
  * Diálogos y menús propios de la app: una capa absoluta arriba del navegador,
@@ -31,17 +31,31 @@ type ConfirmOpts = {
 
 type NoticeOpts = { title: string; message?: string; okLabel?: string };
 
+/** Hoja con un campo de texto: crear grupo, renombrar, agregar a alguien sin cuenta. */
+type PromptOpts = {
+  title: string;
+  message?: string;
+  placeholder?: string;
+  initial?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  maxLength?: number;
+};
+
 type MenuOpts = { title?: string; message?: string; items: MenuItem[]; cancelLabel?: string };
 
 type Sheet =
   | { kind: 'confirm'; opts: ConfirmOpts; resolve: (v: boolean) => void }
   | { kind: 'notice'; opts: NoticeOpts; resolve: (v: boolean) => void }
-  | { kind: 'menu'; opts: MenuOpts; resolve: (v: boolean) => void };
+  | { kind: 'menu'; opts: MenuOpts; resolve: (v: boolean) => void }
+  | { kind: 'prompt'; opts: PromptOpts; resolve: (v: boolean) => void };
 
 type Api = {
   confirm: (o: ConfirmOpts) => Promise<boolean>;
   notice: (o: NoticeOpts) => Promise<boolean>;
   menu: (o: MenuOpts) => Promise<boolean>;
+  /** Devuelve el texto escrito, o null si se cerró sin confirmar. */
+  prompt: (o: PromptOpts) => Promise<string | null>;
 };
 
 const Ctx = createContext<Api | null>(null);
@@ -54,6 +68,8 @@ export function useOverlay(): Api {
 
 export function OverlayProvider({ children }: { children: ReactNode }) {
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  // El texto del prompt vive acá arriba: la hoja se desmonta al cerrarse.
+  const escrito = useRef('');
 
   const open = useCallback(<K extends Sheet['kind']>(kind: K, opts: Extract<Sheet, { kind: K }>['opts']) => {
     haptic.light();
@@ -67,6 +83,12 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
       confirm: (o) => open('confirm', o),
       notice: (o) => open('notice', o),
       menu: (o) => open('menu', o),
+      prompt: async (o) => {
+        escrito.current = o.initial ?? '';
+        const ok = await open('prompt', o);
+        const valor = escrito.current.trim();
+        return ok && valor ? valor : null;
+      },
     }),
     [open],
   );
@@ -84,13 +106,21 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={api}>
       <View style={{ flex: 1 }}>
         {children}
-        {sheet ? <SheetLayer sheet={sheet} onClose={close} /> : null}
+        {sheet ? <SheetLayer sheet={sheet} onClose={close} onType={(t) => (escrito.current = t)} /> : null}
       </View>
     </Ctx.Provider>
   );
 }
 
-function SheetLayer({ sheet, onClose }: { sheet: Sheet; onClose: (v: boolean, after?: () => void) => void }) {
+function SheetLayer({
+  sheet,
+  onClose,
+  onType,
+}: {
+  sheet: Sheet;
+  onClose: (v: boolean, after?: () => void) => void;
+  onType: (t: string) => void;
+}) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const [anim] = useState(() => new Animated.Value(0));
@@ -132,6 +162,7 @@ function SheetLayer({ sheet, onClose }: { sheet: Sheet; onClose: (v: boolean, af
         />
       </Animated.View>
 
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Animated.View
         style={{
           transform: [{ translateY: translate }],
@@ -197,10 +228,46 @@ function SheetLayer({ sheet, onClose }: { sheet: Sheet; onClose: (v: boolean, af
             />
             <Button label={sheet.opts.cancelLabel ?? 'Cancelar'} variant="outline" onPress={() => dismiss(false)} />
           </View>
+        ) : sheet.kind === 'prompt' ? (
+          <PromptBody opts={sheet.opts} onType={onType} onConfirm={() => dismiss(true)} onCancel={() => dismiss(false)} />
         ) : (
           <Button label={sheet.opts.okLabel ?? 'Entendido'} onPress={() => dismiss(true)} />
         )}
       </Animated.View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+function PromptBody({
+  opts,
+  onType,
+  onConfirm,
+  onCancel,
+}: {
+  opts: PromptOpts;
+  onType: (t: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [valor, setValor] = useState(opts.initial ?? '');
+  const cambiar = (t: string) => {
+    setValor(t);
+    onType(t);
+  };
+  return (
+    <View style={{ gap: space.sm }}>
+      <Field
+        value={valor}
+        onChangeText={cambiar}
+        placeholder={opts.placeholder}
+        maxLength={opts.maxLength ?? 40}
+        autoFocus
+        returnKeyType="done"
+        onSubmitEditing={() => valor.trim() && onConfirm()}
+      />
+      <Button label={opts.confirmLabel ?? 'Guardar'} disabled={!valor.trim()} onPress={onConfirm} />
+      <Button label={opts.cancelLabel ?? 'Cancelar'} variant="ghost" onPress={onCancel} />
     </View>
   );
 }

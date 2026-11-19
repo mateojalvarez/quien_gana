@@ -170,20 +170,23 @@ export function Screen({
       {(title || back || right) && (
         <View style={[pad, { paddingBottom: space.md }]}>
           {decor}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: touch }}>
-            {back ? (
-              <IconButton
-                name="chevronLeft"
-                label="Volver"
-                onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-              />
-            ) : (
-              <View style={{ width: 1 }} />
-            )}
-            {right}
-          </View>
+          {/* Sin volver ni acción a la derecha la fila sobra: en una pestaña dejaba 44px muertos. */}
+          {back || right ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: touch }}>
+              {back ? (
+                <IconButton
+                  name="chevronLeft"
+                  label="Volver"
+                  onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+                />
+              ) : (
+                <View style={{ width: 1 }} />
+              )}
+              {right}
+            </View>
+          ) : null}
           {title ? (
-            <View style={{ paddingTop: space.lg }}>
+            <View style={{ paddingTop: back || right ? space.lg : 0 }}>
               {meta ? <Label style={{ marginBottom: space.xs }}>{meta}</Label> : null}
               <Display numberOfLines={2} style={decor ? { maxWidth: '72%' } : undefined}>
                 {title}

@@ -4,6 +4,7 @@ import { Platform, Pressable, View } from 'react-native';
 
 import { AppleButton, GoogleButton } from '@/components/auth-buttons';
 import { useOverlay } from '@/components/overlay';
+import { TAB_BAR_SPACE } from '@/components/tab-bar';
 import {
   Avatar,
   Body,
@@ -14,6 +15,7 @@ import {
   Screen,
   SectionHead,
   Segmented,
+  Num,
   Tag,
   Title,
   Toggle,
@@ -34,8 +36,9 @@ import {
 } from '@/lib/auth';
 import { pull } from '@/lib/sync';
 import { useAuth } from '@/providers/auth-provider';
+import { useGames } from '@/store/games';
 import { useSettings, type ThemePref } from '@/store/settings';
-import { palette, space } from '@/theme/tokens';
+import { border, fonts, palette, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
 const PROVIDER_LABEL = { apple: 'Apple', google: 'Google' } as const;
@@ -55,6 +58,15 @@ export default function Ajustes() {
   useEffect(() => {
     isAppleNativeAvailable().then(setAppleNative);
   }, []);
+
+  const games = useGames((s) => s.games);
+  const partidas = Object.values(games);
+  const stats = [
+    { v: String(partidas.length), l: 'Partidas' },
+    { v: String(partidas.filter((g) => g.finishedAt).length), l: 'Terminadas' },
+    // Los grupos llegan en la próxima actualización: hasta entonces no hay ninguno.
+    { v: '0', l: 'Grupos' },
+  ];
 
   const isGuest = !!user?.is_anonymous;
   const providers = providersOf(user);
@@ -142,7 +154,7 @@ export default function Ajustes() {
   }
 
   return (
-    <Screen title="Ajustes" meta="Cuenta y preferencias">
+    <Screen title="Perfil" meta="Cuenta y preferencias" back={false}>
       {/* Cuenta */}
       <Card color={palette.salvia} style={{ marginTop: space.lg, padding: space.xl }}>
         <Row style={{ gap: space.lg }}>
@@ -158,6 +170,26 @@ export default function Ajustes() {
           {!isGuest && providers.length ? <Tag label={providers.map((p) => PROVIDER_LABEL[p as 'apple' | 'google'] ?? p).join(' · ')} /> : null}
         </Row>
       </Card>
+
+      {/* Estadísticas */}
+      <Row style={{ marginTop: space.md, gap: space.sm }}>
+        {stats.map((s) => (
+          <View
+            key={s.l}
+            style={{
+              flex: 1,
+              borderRadius: radius.field,
+              borderWidth: border,
+              borderColor: c.lineStrong,
+              paddingHorizontal: space.md,
+              paddingVertical: 10,
+            }}
+          >
+            <Num style={{ fontSize: 24 }}>{s.v}</Num>
+            <Label style={{ fontFamily: fonts.semibold, fontSize: 12.5 }}>{s.l}</Label>
+          </View>
+        ))}
+      </Row>
 
       {isGuest ? (
         <View style={{ gap: space.sm, marginTop: space.lg }}>
@@ -213,6 +245,9 @@ export default function Ajustes() {
       <Label style={{ textAlign: 'center', marginTop: space.lg }}>
         ¿Quién gana? · v{Constants.expoConfig?.version ?? '1.0.0'}
       </Label>
+
+      {/* La barra de pestañas flota encima del scroll: este aire la deja pasar. */}
+      <View style={{ height: TAB_BAR_SPACE }} />
     </Screen>
   );
 }

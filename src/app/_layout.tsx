@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { OverlayProvider } from '@/components/overlay';
+import { useInviteLink } from '@/features/grupos/use-invite-link';
 import { AuthProvider, useAuth } from '@/providers/auth-provider';
 import { useTheme } from '@/theme/use-theme';
 
@@ -31,6 +32,9 @@ function RootNavigator() {
   });
 
   const ready = fontsLoaded && !loading;
+
+  // Las invitaciones a grupos entran por acá, con sesión o sin ella.
+  useInviteLink(!!session);
 
   useEffect(() => {
     SystemUI.setBackgroundColorAsync(c.bg);

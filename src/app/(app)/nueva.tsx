@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { Clay } from '@/components/clay';
@@ -22,10 +22,10 @@ import {
 } from '@/components/ui';
 import { Reorderable } from '@/components/reorderable';
 import { DEFAULTS, LIMITS, maxCards } from '@/features/corazones/rules';
-import type { GameKind } from '@/features/types';
 import { haptic } from '@/lib/haptics';
 import { uid } from '@/lib/id';
 import { useGames } from '@/store/games';
+import { groupById, playerNames, useGrupos } from '@/store/grupos';
 import { border, fonts, onPlayerColor, palette, playerColor, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
@@ -35,15 +35,33 @@ const ROW_H = 58;
 
 export default function NuevaPartida() {
   const { kind: kindParam } = useLocalSearchParams<{ kind?: string }>();
-  const kind: GameKind = kindParam === 'corazones' ? 'corazones' : 'anotador';
+  // Truco no pasa por acá: tiene su propia pantalla, con equipos en vez de jugadores.
+  const kind: 'anotador' | 'corazones' = kindParam === 'corazones' ? 'corazones' : 'anotador';
   const { c, scheme } = useTheme();
   const create = useGames((s) => s.create);
 
+  // El grupo activo precarga a sus integrantes: con cuenta y sin cuenta.
+  const activeId = useGrupos((s) => s.activeId);
+  const groups = useGrupos((s) => s.groups);
+  const locals = useGrupos((s) => s.locals);
+  const grupo = groupById(groups, activeId);
+  const delGrupo = useMemo(
+    () => (grupo ? playerNames(grupo, locals[grupo.id] ?? []) : []),
+    [grupo, locals],
+  );
+
+  const vacios = () => [
+    { id: uid(), name: '' },
+    { id: uid(), name: '' },
+  ];
+
   const [title, setTitle] = useState('');
-  const [players, setPlayers] = useState<{ id: string; name: string }[]>(() => [
-    { id: uid(), name: '' },
-    { id: uid(), name: '' },
-  ]);
+  const [usandoGrupo, setUsandoGrupo] = useState(delGrupo.length >= 2);
+  const [players, setPlayers] = useState<{ id: string; name: string }[]>(() => {
+    const tope = kind === 'corazones' ? LIMITS.maxPlayers : MAX_PLAYERS_ANOTADOR;
+    const nombres = delGrupo.slice(0, tope);
+    return nombres.length >= 2 ? nombres.map((name) => ({ id: uid(), name })) : vacios();
+  });
   const [target, setTarget] = useState<number | null>(kind === 'anotador' ? 100 : null);
   const [lowestWins, setLowestWins] = useState(false);
   const [totalRounds, setTotalRounds] = useState<number>(DEFAULTS.totalRounds);
@@ -119,6 +137,45 @@ export default function NuevaPartida() {
 
       <View style={{ marginTop: space.xxl }}>
         <SectionHead title="Jugadores" meta={`${named.length} de ${maxPlayers}`} />
+
+        {grupo && delGrupo.length >= 2 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              usandoGrupo ? `Quitar los integrantes de ${grupo.name}` : `Cargar los integrantes de ${grupo.name}`
+            }
+            onPress={() => {
+              haptic.tap();
+              if (usandoGrupo) {
+                setPlayers(vacios());
+                setUsandoGrupo(false);
+              } else {
+                setPlayers(delGrupo.slice(0, maxPlayers).map((name) => ({ id: uid(), name })));
+                setUsandoGrupo(true);
+              }
+            }}
+            style={({ pressed }) => ({
+              marginBottom: space.md,
+              minHeight: 44,
+              borderRadius: radius.pill,
+              borderWidth: border,
+              borderColor: c.lineStrong,
+              backgroundColor: usandoGrupo ? c.inverseBg : 'transparent',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space.sm,
+              paddingHorizontal: space.lg,
+              alignSelf: 'flex-start',
+              opacity: pressed ? 0.75 : 1,
+            })}
+          >
+            <Icon name="users" size={17} color={usandoGrupo ? c.inverseInk : c.ink} />
+            <Label color={usandoGrupo ? c.inverseInk : c.ink} style={{ fontSize: 14.5 }}>
+              {grupo.name}
+            </Label>
+            <Icon name={usandoGrupo ? 'close' : 'plus'} size={15} color={usandoGrupo ? c.inverseInk : c.muted} />
+          </Pressable>
+        ) : null}
         <Reorderable
           items={players}
           keyOf={(p) => p.id}

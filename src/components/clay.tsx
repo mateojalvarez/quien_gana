@@ -18,6 +18,7 @@ const sources = {
   composicion: require('@/assets/clay/composicion-grande.png'),
   cinta: require('@/assets/clay/cinta.png'),
   boomerang: require('@/assets/clay/boomerang.png'),
+  esferas: require('@/assets/clay/esferas.png'),
 } as const;
 
 export type ClayName = keyof typeof sources;

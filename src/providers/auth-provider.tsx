@@ -3,7 +3,9 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 
 import { localGamesArePreserved } from '@/lib/session-flags';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { useCatalog } from '@/store/catalog';
 import { useGames } from '@/store/games';
+import { useGrupos } from '@/store/grupos';
 
 type AuthState = {
   session: Session | null;
@@ -26,7 +28,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
       // En un merge el SIGNED_OUT es un paso intermedio: no borramos lo local.
-      if (event === 'SIGNED_OUT' && !localGamesArePreserved()) useGames.getState().reset();
+      if (event === 'SIGNED_OUT' && !localGamesArePreserved()) {
+        useGames.getState().reset();
+        useCatalog.getState().reset();
+        useGrupos.getState().reset();
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, []);

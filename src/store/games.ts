@@ -2,12 +2,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import type { AnotadorGame, CorazonesGame, CorazonesRound, Game, Player } from '@/features/types';
+import type { AnotadorGame, CorazonesGame, CorazonesRound, Game, Player, TrucoGame, TrucoMove } from '@/features/types';
+import { movePossible } from '@/features/truco/rules';
 import { uid } from '@/lib/id';
 
 type NewGameInput =
   | { kind: 'anotador'; title: string; players: string[]; target: number | null; lowestWins: boolean }
-  | { kind: 'corazones'; title: string; players: string[]; totalRounds: number; decks: number; bonusFromRound: number };
+  | { kind: 'corazones'; title: string; players: string[]; totalRounds: number; decks: number; bonusFromRound: number }
+  | { kind: 'truco'; title: string; players: string[]; target: 15 | 30; matches: boolean };
 
 type GamesState = {
   games: Record<string, Game>;
@@ -23,6 +25,8 @@ type GamesState = {
   addCorazonesRound: (id: string, round: CorazonesRound) => void;
   updateCorazonesRound: (id: string, index: number, round: CorazonesRound) => void;
   undoRound: (id: string) => void;
+  /** Truco: un toque de +1 o −1 a un equipo. */
+  addTrucoMove: (id: string, move: TrucoMove) => void;
   finish: (id: string, finished: boolean) => void;
 
   // usados por sync
@@ -55,7 +59,9 @@ export const useGames = create<GamesState>()(
         const players: Player[] = input.players.map((name) => ({ id: uid(), name }));
         const base = { id, title: input.title, players, createdAt: now(), updatedAt: now(), finishedAt: null };
         const game: Game =
-          input.kind === 'anotador'
+          input.kind === 'truco'
+            ? ({ ...base, kind: 'truco', moves: [], target: input.target, matches: input.matches } satisfies TrucoGame)
+            : input.kind === 'anotador'
             ? ({ ...base, kind: 'anotador', rounds: [], target: input.target, lowestWins: input.lowestWins } satisfies AnotadorGame)
             : ({
                 ...base,
@@ -102,10 +108,23 @@ export const useGames = create<GamesState>()(
         set((s) => touch(s, { ...g, rounds }));
       },
 
+      /** Deshacer: la última ronda, o en Truco el último toque. */
       undoRound: (id) => {
         const g = get().games[id];
-        if (!g || g.rounds.length === 0) return;
+        if (!g) return;
+        if (g.kind === 'truco') {
+          if (g.moves.length === 0) return;
+          set((s) => touch(s, { ...g, moves: g.moves.slice(0, -1), finishedAt: null }));
+          return;
+        }
+        if (g.rounds.length === 0) return;
         set((s) => touch(s, { ...g, rounds: g.rounds.slice(0, -1), finishedAt: null } as Game));
+      },
+
+      addTrucoMove: (id, move) => {
+        const g = get().games[id];
+        if (g?.kind !== 'truco' || !movePossible(g, move)) return;
+        set((s) => touch(s, { ...g, moves: [...g.moves, move] }));
       },
 
       finish: (id, finished) => {

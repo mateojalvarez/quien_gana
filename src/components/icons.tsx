@@ -24,11 +24,21 @@ export type IconName =
   | 'play'
   | 'pause'
   | 'dice'
-  | 'clock';
+  | 'clock'
+  | 'star'
+  | 'users'
+  | 'search';
 
-type Props = { name: IconName; size?: number; color?: string; strokeWidth?: number };
+type Props = {
+  name: IconName;
+  size?: number;
+  color?: string;
+  strokeWidth?: number;
+  /** Sólo para 'star': relleno de la estrella cuando el juego es favorito. */
+  fill?: string;
+};
 
-export function Icon({ name, size = 20, color = '#151110', strokeWidth = 2 }: Props) {
+export function Icon({ name, size = 20, color = '#151110', strokeWidth = 2, fill }: Props) {
   const stroke = {
     stroke: color,
     strokeWidth,
@@ -95,6 +105,27 @@ export function Icon({ name, size = 20, color = '#151110', strokeWidth = 2 }: Pr
         <>
           <Circle cx={12} cy={12} r={8} {...stroke} />
           <Path d="M12 8v4.5l3 2" {...stroke} />
+        </>
+      )}
+      {name === 'star' && (
+        <Path
+          d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8 6.6 19.7l1.1-6.1L3.2 9.4l6.1-.8z"
+          {...stroke}
+          fill={fill ?? 'none'}
+          strokeWidth={strokeWidth - 0.2}
+        />
+      )}
+      {name === 'users' && (
+        <>
+          <Circle cx={9} cy={8} r={3.5} {...stroke} />
+          <Path d="M2.5 20c1-3.5 3.6-5.5 6.5-5.5s5.5 2 6.5 5.5" {...stroke} />
+          <Path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.5 3.5 5.2" {...stroke} />
+        </>
+      )}
+      {name === 'search' && (
+        <>
+          <Circle cx={11} cy={11} r={7} {...stroke} />
+          <Path d="M20 20l-4-4" {...stroke} strokeWidth={strokeWidth + 0.2} />
         </>
       )}
     </Svg>

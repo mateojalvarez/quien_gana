@@ -32,5 +32,25 @@ export type CorazonesGame = GameBase & {
   bonusFromRound?: number;
 };
 
-export type Game = AnotadorGame | CorazonesGame;
+/**
+ * Truco: no hay rondas, hay toques. Cada +1 o −1 queda guardado para poder
+ * deshacer el último, y el tanteador se deriva de la suma.
+ */
+export type TrucoMove = { team: 0 | 1; delta: 1 | -1 };
+
+export type TrucoGame = GameBase & {
+  kind: 'truco';
+  /** `players` son los dos equipos, en orden. */
+  moves: TrucoMove[];
+  /** A 15 no hay buenas; a 30 los primeros 15 son malas. */
+  target: 15 | 30;
+  /** Dibujar los puntos como fósforos de a cinco. */
+  matches: boolean;
+};
+
+export type Game = AnotadorGame | CorazonesGame | TrucoGame;
 export type GameKind = Game['kind'];
+
+/** Las partidas con rondas; Truco queda afuera porque cuenta toques. */
+export type RoundGame = AnotadorGame | CorazonesGame;
+export const hasRounds = (g: Game): g is RoundGame => g.kind !== 'truco';

@@ -3,12 +3,21 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { Game, Player } from '@/features/types';
 import { haptic } from '@/lib/haptics';
+import { summary as trucoSummary } from '@/features/truco/rules';
 import { useGames } from '@/store/games';
 import { border, fonts, onPlayerColor, palette, playerColor, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 import { Clay } from './clay';
 import { useOverlay } from './overlay';
 import { Avatar, Bar, Card, Display, Label, Num, Row, Title } from './ui';
+
+const NOMBRE = { anotador: 'Anotador', corazones: 'Corazones', truco: 'Truco' } as const;
+
+function resumen(game: Game): string {
+  if (game.kind === 'truco') return `Truco · ${trucoSummary(game)}`;
+  const n = game.rounds.length;
+  return `${NOMBRE[game.kind]} · ${n} ${n === 1 ? 'ronda' : 'rondas'}`;
+}
 
 /** Menú de la partida: hoja propia, nunca el ActionSheet del sistema. */
 export function GameMenu({ game }: { game: Game }) {
@@ -19,9 +28,13 @@ export function GameMenu({ game }: { game: Game }) {
   async function open() {
     await overlay.menu({
       title: game.title,
-      message: `${game.kind === 'corazones' ? 'Corazones' : 'Anotador'} · ${game.rounds.length} ${game.rounds.length === 1 ? 'ronda' : 'rondas'}`,
+      message: resumen(game),
       items: [
-        { label: 'Deshacer última ronda', icon: 'undo', onPress: () => undoRound(game.id) },
+        {
+          label: game.kind === 'truco' ? 'Deshacer el último punto' : 'Deshacer última ronda',
+          icon: 'undo',
+          onPress: () => undoRound(game.id),
+        },
         {
           label: game.finishedAt ? 'Reabrir partida' : 'Terminar partida',
           icon: 'flag',
@@ -34,7 +47,10 @@ export function GameMenu({ game }: { game: Game }) {
           onPress: async () => {
             const ok = await overlay.confirm({
               title: '¿Eliminar la partida?',
-              message: 'Se borran sus rondas y su tabla. No se puede deshacer.',
+              message:
+                game.kind === 'truco'
+                  ? 'Se borra el tanteador. No se puede deshacer.'
+                  : 'Se borran sus rondas y su tabla. No se puede deshacer.',
               confirmLabel: 'Eliminar',
               destructive: true,
             });
