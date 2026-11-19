@@ -45,8 +45,11 @@ export default function NuevoTruco() {
       title="Truco"
       meta="Nueva partida"
       decor={
-        <View style={{ position: 'absolute', right: -6, top: 10 }} pointerEvents="none">
-          <Clay name="cartaAs" size={120} />
+        <View style={{ position: 'absolute', right: 4, top: 6 }} pointerEvents="none">
+          {/* Adentro y no desbordando como el resto de las arcillas: el abanico
+              ocupa todo el ancho de su cuadro, así que contra el canto de la
+              pantalla el borde se ve cortado y parece un recorte, no un desborde. */}
+          <Clay name="cartasEspanolas" size={128} />
         </View>
       }
       footer={<Button label="Empezar partida" trailingIcon="arrowRight" onPress={empezar} />}

@@ -157,7 +157,7 @@ export default function Inicio() {
                 enCurso.kind === 'corazones'
                   ? 'corazon'
                   : enCurso.kind === 'truco'
-                    ? 'cartaAs'
+                    ? 'cartasEspanolas'
                     : enCurso.kind === 'generala'
                       ? 'dado'
                       : 'lapiz'

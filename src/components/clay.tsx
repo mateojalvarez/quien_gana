@@ -12,6 +12,11 @@ const sources = {
   corona: require('@/assets/clay/corona.png'),
   abanicoCartas: require('@/assets/clay/abanico-cartas.png'),
   cartaAs: require('@/assets/clay/carta-as.png'),
+  // Truco se juega con baraja española: el as de corazones de `cartaAs` es
+  // de otro mazo. El abanico para los lugares grandes, la espada sola para
+  // los chicos, que es donde un abanico de tres cartas se vuelve manchón.
+  cartasEspanolas: require('@/assets/clay/cartas-espanolas.png'),
+  cartaEspada: require('@/assets/clay/carta-espada.png'),
   destello: require('@/assets/clay/destello.png'),
   asteriscoSalvia: require('@/assets/clay/asterisco-salvia.png'),
   asteriscoTomate: require('@/assets/clay/asterisco-tomate.png'),

@@ -49,7 +49,7 @@ export const TOOLS: Tool[] = [
     name: 'Truco',
     sub: 'A 15 o a 30, con fósforos',
     kicker: 'Anotador',
-    clay: 'cartaAs',
+    clay: 'cartaEspada',
     color: palette.salvia,
     categoria: 'anotadores',
     href: '/truco/nueva',

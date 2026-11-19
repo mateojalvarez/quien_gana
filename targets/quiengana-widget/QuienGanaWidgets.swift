@@ -48,7 +48,7 @@ struct TrucoLiveActivity: Widget {
           }
         }
       } compactLeading: {
-        ClayCartaAs(lado: 22)
+        ClayCartaEspada(lado: 22)
       } compactTrailing: {
         HStack(spacing: 3) {
           Text("\(contexto.state.nosotros)").foregroundStyle(Paleta.mostaza)
@@ -72,7 +72,7 @@ private struct TrucoPantallaBloqueada: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack(spacing: 8) {
-        ClayCartaAs(lado: 24)
+        ClayCartaEspada(lado: 24)
         Text("Truco · a \(contexto.attributes.target)")
           .font(.system(size: 13, weight: .semibold))
         Spacer()
@@ -177,13 +177,14 @@ private struct BotonSumar: View {
   }
 }
 
-/// La arcilla del truco. Va suelta en la carpeta del target, no en el catálogo:
-/// el imageset que genera el plugin declara 2x y 3x sin archivo y sale gris.
-private struct ClayCartaAs: View {
+/// La arcilla del truco: el as de espadas, que es la carta que corresponde a la
+/// baraja española. Va suelta en la carpeta del target, no en el catálogo: el
+/// imageset que genera el plugin declara 2x y 3x sin archivo y sale gris.
+private struct ClayCartaEspada: View {
   let lado: CGFloat
 
   var body: some View {
-    if let imagen = UIImage(named: "carta-as") {
+    if let imagen = UIImage(named: "carta-espada") {
       Image(uiImage: imagen)
         .renderingMode(.original)
         .resizable()
