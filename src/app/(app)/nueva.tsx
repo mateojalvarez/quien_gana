@@ -31,12 +31,15 @@ import { useTheme } from '@/theme/use-theme';
 
 /** El anotador no reparte cartas, así que su tope es sólo de practicidad. */
 const MAX_PLAYERS_ANOTADOR = 8;
+/** Generala: con más de seis, una vuelta entera se hace eterna. */
+const MAX_PLAYERS_GENERALA = 6;
 const ROW_H = 58;
 
 export default function NuevaPartida() {
   const { kind: kindParam } = useLocalSearchParams<{ kind?: string }>();
   // Truco no pasa por acá: tiene su propia pantalla, con equipos en vez de jugadores.
-  const kind: 'anotador' | 'corazones' = kindParam === 'corazones' ? 'corazones' : 'anotador';
+  const kind: 'anotador' | 'corazones' | 'generala' =
+    kindParam === 'corazones' ? 'corazones' : kindParam === 'generala' ? 'generala' : 'anotador';
   const { c, scheme } = useTheme();
   const create = useGames((s) => s.create);
 
@@ -58,7 +61,7 @@ export default function NuevaPartida() {
   const [title, setTitle] = useState('');
   const [usandoGrupo, setUsandoGrupo] = useState(delGrupo.length >= 2);
   const [players, setPlayers] = useState<{ id: string; name: string }[]>(() => {
-    const tope = kind === 'corazones' ? LIMITS.maxPlayers : MAX_PLAYERS_ANOTADOR;
+    const tope = kind === 'corazones' ? LIMITS.maxPlayers : kind === 'generala' ? MAX_PLAYERS_GENERALA : MAX_PLAYERS_ANOTADOR;
     const nombres = delGrupo.slice(0, tope);
     return nombres.length >= 2 ? nombres.map((name) => ({ id: uid(), name })) : vacios();
   });
@@ -74,7 +77,7 @@ export default function NuevaPartida() {
 
   // Las rondas no limitan a los jugadores ni al revés: cada ronda se reparte de
   // nuevo, así que jugadores y mazos sólo definen el máximo de bazas por ronda.
-  const maxPlayers = kind === 'corazones' ? LIMITS.maxPlayers : MAX_PLAYERS_ANOTADOR;
+  const maxPlayers = kind === 'corazones' ? LIMITS.maxPlayers : kind === 'generala' ? MAX_PLAYERS_GENERALA : MAX_PLAYERS_ANOTADOR;
   const maxRounds = LIMITS.maxRounds;
 
   function setPlayerName(id: string, name: string) {
@@ -92,9 +95,12 @@ export default function NuevaPartida() {
   }
 
   function submit() {
-    const fallbackTitle = `${kind === 'anotador' ? 'Partida' : 'Corazones'} ${new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}`;
+    const nombreKind = { anotador: 'Partida', corazones: 'Corazones', generala: 'Generala' }[kind];
+    const fallbackTitle = `${nombreKind} ${new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}`;
     const id =
-      kind === 'anotador'
+      kind === 'generala'
+        ? create({ kind, title: title.trim() || fallbackTitle, players: named })
+        : kind === 'anotador'
         ? create({ kind, title: title.trim() || fallbackTitle, players: named, target, lowestWins })
         : create({
             kind,
@@ -105,21 +111,21 @@ export default function NuevaPartida() {
             bonusFromRound: Math.min(bonusFromRound, totalRounds),
           });
     haptic.success();
-    router.replace(kind === 'anotador' ? `/anotador/${id}` : `/corazones/${id}`);
+    router.replace(kind === 'anotador' ? `/anotador/${id}` : kind === 'generala' ? `/generala/${id}` : `/corazones/${id}`);
   }
 
   return (
     <Screen
       title="Nueva partida"
-      meta={kind === 'anotador' ? 'Anotador' : 'Corazones'}
+      meta={{ anotador: 'Anotador', corazones: 'Corazones', generala: 'Generala' }[kind]}
       decor={
         <View style={{ position: 'absolute', right: -8, top: 4 }} pointerEvents="none">
-          <Clay name={kind === 'corazones' ? 'corazon' : 'lapiz'} size={96} />
+          <Clay name={kind === 'corazones' ? 'corazon' : kind === 'generala' ? 'dado' : 'lapiz'} size={96} />
         </View>
       }
       footer={
         <Button
-          label="Repartir"
+          label={kind === 'generala' ? 'Empezar' : 'Repartir'}
           meta={canCreate ? `${named.length} jugadores` : undefined}
           trailingIcon="arrowRight"
           disabled={!canCreate}
@@ -131,7 +137,7 @@ export default function NuevaPartida() {
         label="Nombre de la partida (opcional)"
         value={title}
         onChangeText={setTitle}
-        placeholder={kind === 'anotador' ? 'Truco del viernes' : 'Corazones en lo de Juli'}
+        placeholder={{ anotador: 'Truco del viernes', corazones: 'Corazones en lo de Juli', generala: 'Generala del domingo' }[kind]}
         style={{ marginTop: space.lg }}
       />
 
@@ -259,7 +265,7 @@ export default function NuevaPartida() {
         </View>
       </View>
 
-      <View style={{ marginTop: space.xxl }}>
+      <View style={{ marginTop: space.xxl, display: kind === 'generala' ? 'none' : 'flex' }}>
         <SectionHead title="Reglas" />
 
         {kind === 'corazones' ? (

@@ -62,8 +62,7 @@ export const TOOLS: Tool[] = [
     clay: 'dado',
     color: palette.crema,
     categoria: 'anotadores',
-    href: null,
-    pronto: true,
+    href: '/nueva?kind=generala',
   },
   {
     id: 'anotador',

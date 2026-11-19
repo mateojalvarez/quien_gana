@@ -48,9 +48,23 @@ export type TrucoGame = GameBase & {
   matches: boolean;
 };
 
-export type Game = AnotadorGame | CorazonesGame | TrucoGame;
+/**
+ * Generala: cada jugador llena una planilla de once categorías. Los dados de
+ * la tirada en curso son estado de pantalla, no de la partida.
+ */
+export type GeneralaGame = GameBase & {
+  kind: 'generala';
+  /** playerId → categoría → anotación. El tipo fino vive en features/generala. */
+  sheets: Record<string, Record<string, { puntos: number; servida: boolean; cruzada: boolean }>>;
+  /** Índice del jugador al que le toca. */
+  turn: number;
+  /** Id del que ganó con generala servida, si pasó. */
+  servedWinner?: string | null;
+};
+
+export type Game = AnotadorGame | CorazonesGame | TrucoGame | GeneralaGame;
 export type GameKind = Game['kind'];
 
 /** Las partidas con rondas; Truco queda afuera porque cuenta toques. */
 export type RoundGame = AnotadorGame | CorazonesGame;
-export const hasRounds = (g: Game): g is RoundGame => g.kind !== 'truco';
+export const hasRounds = (g: Game): g is RoundGame => g.kind !== 'truco' && g.kind !== 'generala';

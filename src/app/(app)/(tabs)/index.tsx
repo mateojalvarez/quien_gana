@@ -10,6 +10,7 @@ import { Avatar, Body, Card, Display, Label, Num, Row, Rule, SectionHead, Tag, T
 import { standings as anotadorStandings } from '@/features/anotador/logic';
 import type { Tool } from '@/features/catalog';
 import { standings as corazonesStandings } from '@/features/corazones/rules';
+import { posiciones as generalaPosiciones, rondas as generalaRondas } from '@/features/generala/rules';
 import { scores as trucoScores, summary as trucoSummary } from '@/features/truco/rules';
 import type { Game } from '@/features/types';
 import { displayName } from '@/lib/auth';
@@ -23,6 +24,10 @@ import { useTheme } from '@/theme/use-theme';
 
 /** Quién va ganando. En Truco es el equipo con más puntos, si hay alguno. */
 function leaderOf(g: Game) {
+  if (g.kind === 'generala') {
+    const [primero] = generalaPosiciones(g.players, g.sheets);
+    return primero && primero.total > 0 ? { player: { id: primero.id, name: primero.name }, total: primero.total } : null;
+  }
   if (g.kind === 'truco') {
     const [a, b] = trucoScores(g);
     if (a === 0 && b === 0) return null;
@@ -34,18 +39,33 @@ function leaderOf(g: Game) {
 }
 
 /** Cuánto se jugó ya: rondas, o toques en Truco. */
-const jugadas = (g: Game) => (g.kind === 'truco' ? g.moves.length : g.rounds.length);
+const jugadas = (g: Game) =>
+  g.kind === 'truco'
+    ? g.moves.length
+    : g.kind === 'generala'
+      ? Object.values(g.sheets).reduce((n, s) => n + Object.keys(s).length, 0)
+      : g.rounds.length;
 
-const NOMBRE = { anotador: 'Anotador', corazones: 'Corazones', truco: 'Truco' } as const;
+const NOMBRE = { anotador: 'Anotador', corazones: 'Corazones', truco: 'Truco', generala: 'Generala' } as const;
 
 function detalle(g: Game): string {
   if (g.kind === 'truco') return `Truco · ${trucoSummary(g)}`;
+  if (g.kind === 'generala') {
+    const anotadas = Math.min(...g.players.map((p) => Object.keys(g.sheets[p.id] ?? {}).length));
+    return `Generala · ronda ${Math.min(anotadas + 1, generalaRondas)} de ${generalaRondas} · ${g.players.length} jugadores`;
+  }
   const n = g.rounds.length;
   return `${NOMBRE[g.kind]} · ${n} ${n === 1 ? 'ronda' : 'rondas'} · ${g.players.length} jugadores`;
 }
 
 const hrefOf = (g: Game) =>
-  (g.kind === 'anotador' ? `/anotador/${g.id}` : g.kind === 'truco' ? `/truco/${g.id}` : `/corazones/${g.id}`) as Href;
+  (g.kind === 'anotador'
+    ? `/anotador/${g.id}`
+    : g.kind === 'truco'
+      ? `/truco/${g.id}`
+      : g.kind === 'generala'
+        ? `/generala/${g.id}`
+        : `/corazones/${g.id}`) as Href;
 
 function fechaDeHoy() {
   const s = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'short' });
@@ -133,7 +153,15 @@ export default function Inicio() {
         {enCurso ? (
           <Card color={c.inverseBg} onPress={() => router.push(hrefOf(enCurso))} style={{ marginTop: space.xl, height: 128 }}>
             <Clay
-              name={enCurso.kind === 'corazones' ? 'corazon' : enCurso.kind === 'truco' ? 'cartaAs' : 'lapiz'}
+              name={
+                enCurso.kind === 'corazones'
+                  ? 'corazon'
+                  : enCurso.kind === 'truco'
+                    ? 'cartaAs'
+                    : enCurso.kind === 'generala'
+                      ? 'dado'
+                      : 'lapiz'
+              }
               size={96}
               style={{ position: 'absolute', right: 12, top: -14 }}
             />

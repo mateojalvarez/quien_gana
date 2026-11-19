@@ -11,10 +11,11 @@ import { Clay } from './clay';
 import { useOverlay } from './overlay';
 import { Avatar, Bar, Card, Display, Label, Num, Row, Title } from './ui';
 
-const NOMBRE = { anotador: 'Anotador', corazones: 'Corazones', truco: 'Truco' } as const;
+const NOMBRE = { anotador: 'Anotador', corazones: 'Corazones', truco: 'Truco', generala: 'Generala' } as const;
 
 function resumen(game: Game): string {
   if (game.kind === 'truco') return `Truco · ${trucoSummary(game)}`;
+  if (game.kind === 'generala') return `Generala · ${game.players.length} jugadores`;
   const n = game.rounds.length;
   return `${NOMBRE[game.kind]} · ${n} ${n === 1 ? 'ronda' : 'rondas'}`;
 }
@@ -30,11 +31,17 @@ export function GameMenu({ game }: { game: Game }) {
       title: game.title,
       message: resumen(game),
       items: [
-        {
-          label: game.kind === 'truco' ? 'Deshacer el último punto' : 'Deshacer última ronda',
-          icon: 'undo',
-          onPress: () => undoRound(game.id),
-        },
+        // En Generala cada anotación cierra una categoría y pasa el turno:
+        // no hay nada que deshacer sin reescribir la planilla de otro.
+        ...(game.kind === 'generala'
+          ? []
+          : [
+              {
+                label: game.kind === 'truco' ? 'Deshacer el último punto' : 'Deshacer última ronda',
+                icon: 'undo' as const,
+                onPress: () => undoRound(game.id),
+              },
+            ]),
         {
           label: game.finishedAt ? 'Reabrir partida' : 'Terminar partida',
           icon: 'flag',
