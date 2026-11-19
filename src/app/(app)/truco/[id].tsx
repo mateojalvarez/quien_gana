@@ -11,7 +11,6 @@ import { Body, Display, IconButton, Label, Num, Row, Title } from '@/components/
 import {
   enBuenas,
   faltan,
-  lastMoveLabel,
   matchRows,
   movePossible,
   RULES,
@@ -32,7 +31,6 @@ export default function TrucoPartida() {
   const insets = useSafeAreaInsets();
   const juego = useGames((s) => s.games[id]);
   const addMove = useGames((s) => s.addTrucoMove);
-  const undo = useGames((s) => s.undoRound);
   const finish = useGames((s) => s.finish);
 
   // Antes del return temprano: el orden de los hooks no puede cambiar.
@@ -49,7 +47,6 @@ export default function TrucoPartida() {
   const game: TrucoGame = juego;
   const puntos = scores(game);
   const ganador = winner(game);
-  const ultimo = lastMoveLabel(game);
 
   function tocar(team: 0 | 1, delta: 1 | -1) {
     if (!movePossible(game, { team, delta })) return;
@@ -194,32 +191,9 @@ export default function TrucoPartida() {
         })}
       </Row>
 
-      {/* Deshacer y botones */}
-      <View style={{ paddingHorizontal: space.xl, paddingBottom: insets.bottom + space.lg, gap: space.sm }}>
-        <Row style={{ justifyContent: 'center', gap: 6, minHeight: 22 }}>
-          {ultimo ? (
-            <>
-              <Label>Último: {ultimo} ·</Label>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Deshacer ${ultimo}`}
-                hitSlop={10}
-                onPress={() => {
-                  haptic.light();
-                  undo(game.id);
-                }}
-                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-              >
-                <Label color={c.ink} style={{ textDecorationLine: 'underline' }}>
-                  Deshacer
-                </Label>
-              </Pressable>
-            </>
-          ) : (
-            <Label>Tocá +1 para anotar</Label>
-          )}
-        </Row>
-
+      {/* Botones. Deshacer vive en el menú de la partida: abajo del tanteador
+          competía por atención con el +1, que es lo único que se toca jugando. */}
+      <View style={{ paddingHorizontal: space.xl, paddingBottom: insets.bottom + space.lg, gap: space.sm, marginTop: space.xxl }}>
         <Row style={{ gap: space.md, alignItems: 'stretch' }}>
           {[0, 1].map((i) => {
             const team = i as 0 | 1;
