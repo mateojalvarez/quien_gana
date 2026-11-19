@@ -2,8 +2,11 @@ node_modules/
 .expo/
 dist/
 web-build/
-ios/
-android/
+# Sólo las carpetas nativas de la raíz: las genera `expo prebuild`. Sin la
+# barra inicial esto también tapaba modules/live-activity/ios/, que es código
+# fuente y tiene que viajar al build.
+/ios/
+/android/
 *.orig.*
 *.jks
 *.p8
