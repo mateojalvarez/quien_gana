@@ -1,10 +1,13 @@
 import { Stack } from 'expo-router';
 
+import { usePendientesDeTruco } from '@/features/live-activity/truco';
 import { useSync } from '@/lib/sync';
 import { useTheme } from '@/theme/use-theme';
 
 export default function AppLayout() {
   useSync();
+  // Lo que se apretó en la Live Activity con la app afuera entra por acá.
+  usePendientesDeTruco();
   const { c } = useTheme();
   return (
     // Sin presentaciones modales del sistema: todas las pantallas empujan igual.

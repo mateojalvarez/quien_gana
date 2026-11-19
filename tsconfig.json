@@ -3,6 +3,9 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
+      "@/live-activity": [
+        "./modules/live-activity"
+      ],
       "@/assets/*": [
         "./assets/*"
       ],

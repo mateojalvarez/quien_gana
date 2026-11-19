@@ -52,6 +52,8 @@ export default function Ajustes() {
   const setTheme = useSettings((s) => s.setTheme);
   const haptics = useSettings((s) => s.haptics);
   const setHaptics = useSettings((s) => s.setHaptics);
+  const liveActivities = useSettings((s) => s.liveActivities);
+  const setLiveActivities = useSettings((s) => s.setLiveActivities);
   const [appleNative, setAppleNative] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -224,6 +226,16 @@ export default function Ajustes() {
               <Label>Respuesta al tocar botones y cerrar rondas</Label>
             </View>
             <Toggle value={haptics} onChange={setHaptics} label="Vibración" />
+          </Row>
+        ) : null}
+
+        {Platform.OS === 'ios' ? (
+          <Row style={{ justifyContent: 'space-between', marginTop: space.lg, minHeight: 56 }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Title style={{ fontSize: 17 }}>Pantalla bloqueada</Title>
+              <Label>Ver la partida y anotar sin abrir la app</Label>
+            </View>
+            <Toggle value={liveActivities} onChange={setLiveActivities} label="Pantalla bloqueada" />
           </Row>
         ) : null}
       </View>

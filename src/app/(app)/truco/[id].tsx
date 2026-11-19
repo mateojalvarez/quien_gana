@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Clay } from '@/components/clay';
 import { Fosforos } from '@/components/fosforos';
+import { useTrucoLiveActivity } from '@/features/live-activity/truco';
 import { GameMenu } from '@/components/game-parts';
 import { Icon } from '@/components/icons';
 import { Body, Display, IconButton, Label, Num, Row, Title } from '@/components/ui';
@@ -33,6 +34,9 @@ export default function TrucoPartida() {
   const addMove = useGames((s) => s.addTrucoMove);
   const undo = useGames((s) => s.undoRound);
   const finish = useGames((s) => s.finish);
+
+  // Antes del return temprano: el orden de los hooks no puede cambiar.
+  useTrucoLiveActivity(juego?.kind === 'truco' ? juego : null);
 
   if (!juego || juego.kind !== 'truco') {
     return (

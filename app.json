@@ -20,6 +20,13 @@
         "CFBundleDevelopmentRegion": "es",
         "CFBundleLocalizations": [
           "es"
+        ],
+        "NSSupportsLiveActivities": true
+      },
+      "appleTeamId": "X77V463WTL",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.mateoalvarez.quiengana"
         ]
       }
     },
@@ -50,6 +57,15 @@
           "dark": {
             "backgroundColor": "#141414",
             "image": "./assets/images/splash-icon.png"
+          }
+        }
+      ],
+      "@bacons/apple-targets",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "17.0"
           }
         }
       ]

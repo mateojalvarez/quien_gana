@@ -21,3 +21,7 @@ supabase/.env
 supabase/functions/.env
 supabase/.branches
 supabase/.temp
+
+# El plugin de apple-targets genera esto en cada prebuild desde `colors` e
+# `images` del expo-target.config.js.
+targets/*/Assets.xcassets/
