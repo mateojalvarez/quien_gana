@@ -10,7 +10,7 @@ import { deleteGroup, removeMember, renameGroup } from '@/features/grupos/api';
 import { useRefreshGrupos, useSetActiveGroup } from '@/features/grupos/use-grupos';
 import { haptic } from '@/lib/haptics';
 import { useAuth } from '@/providers/auth-provider';
-import { groupById, memberRows, useGrupos } from '@/store/grupos';
+import { groupById, memberRows, SIN_LOCALES, useGrupos } from '@/store/grupos';
 import { border, fonts, onPlayerColor, palette, playerColor, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
@@ -20,7 +20,7 @@ export default function GrupoDetalle() {
   const overlay = useOverlay();
   const { session } = useAuth();
   const groups = useGrupos((s) => s.groups);
-  const locals = useGrupos((s) => s.locals[id] ?? []);
+  const locals = useGrupos((s) => s.locals[id] ?? SIN_LOCALES);
   const activeId = useGrupos((s) => s.activeId);
   const addLocal = useGrupos((s) => s.addLocal);
   const renameLocal = useGrupos((s) => s.renameLocal);

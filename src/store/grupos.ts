@@ -5,6 +5,19 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import type { Group, LocalMember, MemberRow } from '@/features/grupos/types';
 import { uid } from '@/lib/id';
 
+/**
+ * La lista vacía de un grupo sin integrantes sin cuenta, como una sola
+ * referencia compartida.
+ *
+ * No es microoptimización: zustand 5 lee el store con `useSyncExternalStore`,
+ * que compara el resultado del selector con `Object.is`. Un `[]` nuevo en cada
+ * lectura nunca es igual al anterior, así que React vuelve a renderizar sin
+ * parar. En desarrollo se ve como un aviso; en un build de release la app se
+ * cierra. Pasaba justo al entrar a un grupo recién creado, que es el único que
+ * todavía no tiene entrada en `locals`.
+ */
+export const SIN_LOCALES: LocalMember[] = [];
+
 type GruposState = {
   /** Copia de lo último que trajo el servidor: la pantalla abre sin esperar la red. */
   groups: Group[];
