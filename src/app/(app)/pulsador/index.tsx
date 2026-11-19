@@ -5,44 +5,86 @@ import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Clay } from '@/components/clay';
-import { Body, Button, Card, Display, Label, Row, Screen, Segmented } from '@/components/ui';
+import { Body, Button, Card, Display, Field, Label, Row, Screen, Segmented } from '@/components/ui';
 import { haptic } from '@/lib/haptics';
+import { makeCode, normalizeCode } from '@/lib/room';
+import { useAuth } from '@/providers/auth-provider';
 import { onPlayerColor, palette, playerColor, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
 type Mode = 'libre' | 'senal';
 type Status = 'armed' | 'waiting' | 'go' | 'done';
+type Where = 'mesa' | 'varios';
 
 /** Entre 1,5 y 4,5 s antes de la señal. */
 const randomDelay = () => 1500 + Math.random() * 3000;
 
 export default function Pulsador() {
   const [playing, setPlaying] = useState(false);
+  const [where, setWhere] = useState<Where>('mesa');
   const [players, setPlayers] = useState(2);
   const [mode, setMode] = useState<Mode>('libre');
-  const { c } = useTheme();
 
   if (playing) return <Arena players={players} mode={mode} onExit={() => setPlaying(false)} />;
 
   return (
     <Screen
       title="Pulsador"
-      meta="Un teléfono, varios jugadores"
+      meta={where === 'mesa' ? 'Un teléfono, varios jugadores' : 'Un teléfono por jugador'}
       decor={
         <View style={{ position: 'absolute', right: -4, top: 12 }} pointerEvents="none">
           <Clay name="pulsador" size={88} />
         </View>
       }
-      footer={<Button label="Jugar" meta={`${players} zonas`} trailingIcon="arrowRight" onPress={() => setPlaying(true)} />}
+      footer={
+        where === 'mesa' ? (
+          <Button label="Jugar" meta={`${players} zonas`} trailingIcon="arrowRight" onPress={() => setPlaying(true)} />
+        ) : undefined
+      }
     >
-      <Label style={{ marginTop: space.lg, marginBottom: space.sm }}>Jugadores</Label>
+      <Segmented
+        style={{ marginTop: space.lg }}
+        options={[
+          { value: 'mesa' as Where, label: 'En la mesa' },
+          { value: 'varios' as Where, label: 'Varios equipos' },
+        ]}
+        value={where}
+        onChange={setWhere}
+      />
+
+      {where === 'mesa' ? (
+        <Mesa players={players} setPlayers={setPlayers} mode={mode} setMode={setMode} />
+      ) : (
+        <Varios />
+      )}
+    </Screen>
+  );
+}
+
+/* ───────────── Un solo teléfono en el centro de la mesa ───────────── */
+
+function Mesa({
+  players,
+  setPlayers,
+  mode,
+  setMode,
+}: {
+  players: number;
+  setPlayers: (n: number) => void;
+  mode: Mode;
+  setMode: (m: Mode) => void;
+}) {
+  const { c } = useTheme();
+  return (
+    <>
+      <Label style={{ marginTop: space.xl, marginBottom: space.sm }}>Jugadores</Label>
       <Segmented options={[2, 3, 4].map((n) => ({ value: n, label: `${n}` }))} value={players} onChange={setPlayers} />
 
       <Label style={{ marginTop: space.xl, marginBottom: space.sm }}>Modo</Label>
       <Segmented
         options={[
-          { value: 'libre', label: 'Libre' },
-          { value: 'senal', label: 'Con señal' },
+          { value: 'libre' as Mode, label: 'Libre' },
+          { value: 'senal' as Mode, label: 'Con señal' },
         ]}
         value={mode}
         onChange={setMode}
@@ -60,7 +102,79 @@ export default function Pulsador() {
       <Body color={c.muted} style={{ marginTop: space.lg, fontSize: 14, lineHeight: 20 }}>
         Apoyá el teléfono en el centro de la mesa. Las zonas de arriba están giradas para quien está enfrente.
       </Body>
-    </Screen>
+    </>
+  );
+}
+
+/* ───────────── Un teléfono por jugador ───────────── */
+
+function Varios() {
+  const { c } = useTheme();
+  const { session } = useAuth();
+  const [name, setName] = useState(
+    () => ((session?.user.user_metadata?.name as string | undefined) ?? '').trim().split(' ')[0],
+  );
+  const [code, setCode] = useState('');
+
+  const go = (sala: string, host: boolean) => {
+    const quien = name.trim() || 'Jugador';
+    haptic.tap();
+    router.push({ pathname: '/pulsador/sala', params: { code: sala, name: quien, host: host ? '1' : '0' } });
+  };
+
+  return (
+    <>
+      <Field
+        label="Tu nombre"
+        value={name}
+        onChangeText={setName}
+        placeholder="Jugador"
+        maxLength={14}
+        autoCapitalize="words"
+        style={{ marginTop: space.xl }}
+      />
+
+      <Button
+        label="Crear sala"
+        trailingIcon="arrowRight"
+        style={{ marginTop: space.lg }}
+        onPress={() => go(makeCode(), true)}
+      />
+
+      <Row style={{ marginTop: space.xxl, gap: space.md, alignItems: 'flex-end' }}>
+        <Field
+          label="Entrar con código"
+          value={code}
+          onChangeText={(t) => setCode(normalizeCode(t))}
+          placeholder="ABCD"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          mono
+          style={{ flex: 1 }}
+        />
+        <Button
+          label="Unirme"
+          variant="outline"
+          size="sm"
+          disabled={code.length < 4}
+          style={{ marginBottom: 6 }}
+          onPress={() => go(code, false)}
+        />
+      </Row>
+
+      <Card color={palette.azul} style={{ marginTop: space.xxl, padding: space.xl, gap: space.sm }}>
+        <Label color={onPlayerColor}>Cómo decide</Label>
+        <Body color={onPlayerColor} style={{ fontSize: 15, lineHeight: 21 }}>
+          Cada toque viaja con su hora, no con su orden de llegada. Los teléfonos ajustan su reloj contra el
+          anfitrión al entrar, así que gana el que tocó antes aunque tenga peor señal.
+        </Body>
+      </Card>
+
+      <Body color={c.muted} style={{ marginTop: space.lg, fontSize: 14, lineHeight: 20 }}>
+        Todos necesitan internet. El que crea la sala hace de árbitro: arranca las rondas y marca si la respuesta
+        fue correcta.
+      </Body>
+    </>
   );
 }
 
