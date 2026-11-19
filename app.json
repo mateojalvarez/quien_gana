@@ -21,10 +21,7 @@
         "CFBundleLocalizations": [
           "es"
         ]
-      },
-      "associatedDomains": [
-        "applinks:quien-gana.app"
-      ]
+      }
     },
     "android": {
       "package": "com.mateoalvarez.quiengana",
