@@ -71,6 +71,18 @@ le dijo cuál de los dos modos era. Ver `supabase/propuesta-amigo-invisible.md`.
 
 `npm run typecheck` · `npm run lint` · `npx expo-doctor`
 
+⚠️ **Después de agregar o sacar una dependencia, regenerá el lock con npm 10**:
+
+```bash
+npx -y npm@10.9.9 install --package-lock-only
+```
+
+EAS corre npm 10 y acá hay npm 11. `@bacons/apple-targets` necesita una copia
+anidada de TypeScript 5: npm 10 la exige escrita en el lock y npm 11 la resuelve
+sin escribirla. Si el lock se genera con npm 11, el build muere en `npm ci` con
+"Missing: typescript@5.9.3 from lock file" antes de compilar nada, y acá no se
+nota porque `node_modules` ya está armado.
+
 ## Publicar
 
 ```bash
