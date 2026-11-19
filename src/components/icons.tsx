@@ -27,7 +27,9 @@ export type IconName =
   | 'clock'
   | 'star'
   | 'users'
-  | 'search';
+  | 'search'
+  | 'noJuntos'
+  | 'barajar';
 
 type Props = {
   name: IconName;
@@ -122,6 +124,9 @@ export function Icon({ name, size = 20, color = '#151110', strokeWidth = 2, fill
           <Path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.5 3.5 5.2" {...stroke} />
         </>
       )}
+      {/* dos renglones tachados: "no pueden estar juntos" */}
+      {name === 'noJuntos' && <Path d="M5 9h14M5 15h14M16 4L8 20" {...stroke} strokeWidth={strokeWidth + 0.4} />}
+      {name === 'barajar' && <Path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" {...stroke} />}
       {name === 'search' && (
         <>
           <Circle cx={11} cy={11} r={7} {...stroke} />

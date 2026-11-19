@@ -56,6 +56,12 @@ type Api = {
   menu: (o: MenuOpts) => Promise<boolean>;
   /** Devuelve el texto escrito, o null si se cerró sin confirmar. */
   prompt: (o: PromptOpts) => Promise<string | null>;
+  /**
+   * Menú que devuelve lo elegido, o null si se cerró. Existe porque el
+   * `onPress` de `menu` corre DESPUÉS de que se resuelve su promesa, así que
+   * leer la elección afuera siempre daba null.
+   */
+  pick: <T>(title: string, opciones: { label: string; value: T }[], message?: string) => Promise<T | null>;
 };
 
 const Ctx = createContext<Api | null>(null);
@@ -89,6 +95,24 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
         const valor = escrito.current.trim();
         return ok && valor ? valor : null;
       },
+      pick: <T,>(title: string, opciones: { label: string; value: T }[], message?: string) =>
+        new Promise<T | null>((resolve) => {
+          let listo = false;
+          const elegir = (v: T) => {
+            listo = true;
+            resolve(v);
+          };
+          open('menu', {
+            title,
+            message,
+            items: opciones.map((o) => ({ label: o.label, onPress: () => elegir(o.value) })),
+          }).then(() => {
+            // el onPress del ítem corre un toque después de cerrarse la hoja
+            setTimeout(() => {
+              if (!listo) resolve(null);
+            }, 60);
+          });
+        }),
     }),
     [open],
   );

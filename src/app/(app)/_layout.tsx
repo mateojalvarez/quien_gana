@@ -16,6 +16,8 @@ export default function AppLayout() {
       <Stack.Screen name="g/[code]" />
       <Stack.Screen name="truco/nueva" />
       <Stack.Screen name="truco/[id]" />
+      <Stack.Screen name="equipos/index" />
+      <Stack.Screen name="equipos/resultado" />
       <Stack.Screen name="pulsador" options={{ gestureEnabled: false }} />
     </Stack>
   );

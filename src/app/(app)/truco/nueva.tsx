@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
@@ -20,8 +20,10 @@ const DESCRIPCION: Record<TrucoTarget, string> = {
 export default function NuevoTruco() {
   const { c } = useTheme();
   const create = useGames((s) => s.create);
+  // El generador de equipos puede mandar los nombres ya armados.
+  const { e1, e2 } = useLocalSearchParams<{ e1?: string; e2?: string }>();
 
-  const [teams, setTeams] = useState<string[]>([...DEFAULTS.teams]);
+  const [teams, setTeams] = useState<string[]>([e1 || DEFAULTS.teams[0], e2 || DEFAULTS.teams[1]]);
   const [target, setTarget] = useState<TrucoTarget>(DEFAULTS.target);
   const [matches, setMatches] = useState(DEFAULTS.matches);
 

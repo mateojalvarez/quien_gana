@@ -113,8 +113,7 @@ export const TOOLS: Tool[] = [
     clay: 'esferas',
     color: palette.rosa,
     categoria: 'organizar',
-    href: null,
-    pronto: true,
+    href: '/equipos',
   },
 ];
 
