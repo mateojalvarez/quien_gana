@@ -110,8 +110,9 @@ openai_api_key = "env(OPENAI_API_KEY)"
 enabled = true
 # Port to use for the email testing server web interface.
 port = 54324
-# Uncomment to expose additional ports for testing user applications that send emails.
-# smtp_port = 54325
+# Puerto SMTP del buzón de pruebas: es al que le habla la función del amigo
+# invisible cuando se corre en local.
+smtp_port = 54325
 # pop3_port = 54326
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
@@ -444,5 +445,22 @@ enabled = true
 verify_jwt = true
 
 [functions.merge-accounts]
+enabled = true
+verify_jwt = true
+
+[functions.amigo-invisible-sortear]
+enabled = true
+verify_jwt = true
+
+[functions.amigo-invisible-reenviar]
+enabled = true
+verify_jwt = true
+
+# Pública a propósito: la pide el cliente de correo, que no manda headers.
+[functions.amigo-invisible-pixel]
+enabled = true
+verify_jwt = false
+
+[functions.amigo-invisible-ver]
 enabled = true
 verify_jwt = true

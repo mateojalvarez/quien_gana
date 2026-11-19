@@ -21,6 +21,10 @@ export default function AppLayout() {
       <Stack.Screen name="truco/[id]" />
       <Stack.Screen name="equipos/index" />
       <Stack.Screen name="equipos/resultado" />
+      <Stack.Screen name="ruleta/index" />
+      <Stack.Screen name="amigo-invisible/index" />
+      <Stack.Screen name="amigo-invisible/nuevo" />
+      <Stack.Screen name="amigo-invisible/[id]" />
       <Stack.Screen name="generala/[id]/index" />
       <Stack.Screen name="generala/[id]/planilla" />
       <Stack.Screen name="pulsador/index" />

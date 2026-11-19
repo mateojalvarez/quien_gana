@@ -7,7 +7,7 @@ import type { Href } from 'expo-router';
 import type { ClayName } from '@/components/clay';
 import { palette } from '@/theme/tokens';
 
-export type Categoria = 'anotadores' | 'dados' | 'tiempo' | 'reaccion' | 'organizar';
+export type Categoria = 'anotadores' | 'dados' | 'tiempo' | 'reaccion' | 'sorteos';
 
 export type Tool = {
   id: string;
@@ -30,7 +30,7 @@ export const CATEGORIAS: { value: Categoria; label: string }[] = [
   { value: 'dados', label: 'Dados y azar' },
   { value: 'tiempo', label: 'Tiempo' },
   { value: 'reaccion', label: 'Reacción' },
-  { value: 'organizar', label: 'Organizar' },
+  { value: 'sorteos', label: 'Sorteos' },
 ];
 
 export const TOOLS: Tool[] = [
@@ -108,11 +108,31 @@ export const TOOLS: Tool[] = [
     id: 'equipos',
     name: 'Equipos',
     sub: 'Repartir jugadores al azar',
-    kicker: 'Organizar',
+    kicker: 'Sorteo',
     clay: 'esferas',
     color: palette.rosa,
-    categoria: 'organizar',
+    categoria: 'sorteos',
     href: '/equipos',
+  },
+  {
+    id: 'ruleta',
+    name: 'Ruleta',
+    sub: 'Cargá premios y girá',
+    kicker: 'Sorteo',
+    clay: 'destello',
+    color: palette.tomate,
+    categoria: 'sorteos',
+    href: '/ruleta',
+  },
+  {
+    id: 'amigo-invisible',
+    name: 'Amigo invisible',
+    sub: 'Por correo, secreto hasta para vos',
+    kicker: 'Sorteo',
+    clay: 'cinta',
+    color: palette.salvia,
+    categoria: 'sorteos',
+    href: '/amigo-invisible',
   },
 ];
 

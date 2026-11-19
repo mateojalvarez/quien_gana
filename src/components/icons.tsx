@@ -30,7 +30,9 @@ export type IconName =
   | 'search'
   | 'noJuntos'
   | 'barajar'
-  | 'camera';
+  | 'camera'
+  | 'sobre'
+  | 'ruleta';
 
 type Props = {
   name: IconName;
@@ -138,6 +140,18 @@ export function Icon({ name, size = 20, color = '#151110', strokeWidth = 2, fill
         <>
           <Circle cx={11} cy={11} r={7} {...stroke} />
           <Path d="M20 20l-4-4" {...stroke} strokeWidth={strokeWidth + 0.2} />
+        </>
+      )}
+      {name === 'sobre' && (
+        <>
+          <Rect x={3} y={5} width={18} height={14} rx={2.5} {...stroke} />
+          <Path d="M3.5 7l8.5 6 8.5-6" {...stroke} />
+        </>
+      )}
+      {name === 'ruleta' && (
+        <>
+          <Circle cx={12} cy={13} r={8} {...stroke} />
+          <Path d="M12 5v16M4 13h16M6.3 7.3l11.4 11.4M17.7 7.3L6.3 18.7" {...stroke} />
         </>
       )}
     </Svg>

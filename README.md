@@ -1,6 +1,7 @@
 # ¿Quién gana?
 
-Hub de mesa: Anotador, Corazones, Dados, Pulsador y Reloj de arena.
+Hub de mesa: Anotador, Corazones, Dados, Pulsador, Reloj de arena, Equipos,
+Ruleta de premios y Amigo invisible.
 Expo SDK 58 · Expo Router · Supabase (auth + Postgres) · local-first.
 
 ## Arrancar
@@ -24,9 +25,12 @@ src/lib/auth.ts        todos los flujos de auth + vincular invitado + borrar cue
 src/lib/sync.ts        sync local-first con public.games (last-write-wins)
 src/features/corazones/rules.ts   ⚠️ reglas de puntaje configurables
 src/theme/tokens.ts    paleta, tipografías, espaciados
+src/lib/avatar.ts      foto de perfil: la propia (bucket `avatars`) y la de Apple/Google
 supabase/migrations/   esquema + RLS
 supabase/functions/delete-account/   borrado de cuenta + revocación de Apple
 supabase/functions/merge-accounts/   fusión de dos cuentas (la de origen se elimina)
+supabase/functions/amigo-invisible-*/  sorteo, reenvío, ver el reparto y pixel de apertura
+supabase/propuesta-amigo-invisible.md  ⚠️ qué se promete del secreto y hasta dónde llega
 ```
 
 ## Backend local (Docker)
@@ -42,6 +46,26 @@ npm run env:cloud                           # volver a la nube
 ```
 
 Google en local sólo funciona en el simulador (redirect `http://127.0.0.1:54321/auth/v1/callback`).
+
+### Correos del amigo invisible
+
+```bash
+cp supabase/functions/.env.example supabase/functions/.env   # generar las dos claves
+openssl rand -base64 32                                      # AMIGO_CLAVE_V1 y PIXEL_SECRET
+npx supabase functions serve --env-file supabase/functions/.env
+```
+
+Con `MAIL_PROVIDER=smtp` los correos no salen a internet: van al buzón de pruebas
+que se lee en <http://127.0.0.1:54324>. En producción es `resend`, con el dominio
+verificado en Resend (SPF y DKIM) o los envíos se rechazan.
+
+`AMIGO_CLAVE_V1` cifra quién le regala a quién. Si se pierde, los sorteos viejos
+no se pueden reenviar nunca más.
+
+Al crear un sorteo el anfitrión elige dos cosas, y **sólo ahí**: si participa, y
+si puede ver el reparto. Lo segundo queda congelado (`reveal_to_host` no está
+entre las columnas que puede actualizar) porque el correo de cada participante ya
+le dijo cuál de los dos modos era. Ver `supabase/propuesta-amigo-invisible.md`.
 
 ## Scripts
 
