@@ -2,6 +2,8 @@
 export type RemoteMember = {
   userId: string;
   name: string;
+  /** Su foto de perfil (propia o la de la cuenta vinculada); null = inicial. */
+  avatarUrl: string | null;
   role: 'admin' | 'member';
   joinedAt: string;
 };
@@ -38,7 +40,7 @@ export type InvitePreview = {
 
 /** Lo que se le muestra al usuario, mezclando los dos orígenes. */
 export type MemberRow =
-  | { kind: 'remote'; id: string; name: string; isAdmin: boolean; isMe: boolean }
+  | { kind: 'remote'; id: string; name: string; avatarUrl: string | null; isAdmin: boolean; isMe: boolean }
   | { kind: 'local'; id: string; name: string };
 
 export const BASE_INVITE_URL = 'https://quien-gana.app/g/';

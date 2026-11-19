@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
@@ -599,12 +600,13 @@ export function Toggle({ value, onChange, label }: { value: boolean; onChange: (
   );
 }
 
-/** Ficha redonda con la inicial del jugador. */
+/** Ficha redonda con la foto del jugador, o su inicial si no tiene. */
 export function Avatar({
   name,
   color,
   size = 34,
   ring,
+  uri,
   style,
 }: {
   name: string;
@@ -612,8 +614,16 @@ export function Avatar({
   size?: number;
   /** Color del aro, para los avatares superpuestos sobre una tarjeta. */
   ring?: string;
+  /** Foto de perfil: la propia o la de la cuenta vinculada. */
+  uri?: string | null;
   style?: StyleProp<ViewStyle>;
 }) {
+  // Si la foto no carga (URL vieja, sin conexión) cae a la inicial, que está
+  // dibujada debajo: nunca queda un círculo vacío.
+  // Guardamos cuál falló, no un booleano: así una foto nueva se intenta igual.
+  const [fallo, setFallo] = useState<string | null>(null);
+  const foto = uri && fallo !== uri ? uri : null;
+
   return (
     <View
       style={[
@@ -626,6 +636,7 @@ export function Avatar({
           justifyContent: 'center',
           borderWidth: ring ? 2 : 0,
           borderColor: ring,
+          overflow: 'hidden',
         },
         style,
       ]}
@@ -633,6 +644,17 @@ export function Avatar({
       <Text style={{ fontFamily: fonts.bold, fontSize: size * 0.42, color: onPlayerColor }}>
         {(name.trim()[0] ?? '?').toUpperCase()}
       </Text>
+      {foto ? (
+        <Image
+          source={{ uri: foto }}
+          style={{ position: 'absolute', width: '100%', height: '100%' }}
+          contentFit="cover"
+          transition={160}
+          cachePolicy="memory-disk"
+          onError={() => setFallo(foto)}
+          accessibilityIgnoresInvertColors
+        />
+      ) : null}
     </View>
   );
 }

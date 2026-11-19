@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 
 import { AppleButton, GoogleButton } from '@/components/auth-buttons';
+import { Icon } from '@/components/icons';
 import { useOverlay } from '@/components/overlay';
 import { TAB_BAR_SPACE } from '@/components/tab-bar';
 import {
@@ -34,6 +35,13 @@ import {
   signInWithOAuth,
   signOut,
 } from '@/lib/auth';
+import {
+  avatarUrlOf,
+  customAvatarUrl,
+  pickAndUploadAvatar,
+  providerAvatarUrl,
+  removeCustomAvatar,
+} from '@/lib/avatar';
 import { pull } from '@/lib/sync';
 import { useAuth } from '@/providers/auth-provider';
 import { useGames } from '@/store/games';
@@ -73,6 +81,11 @@ export default function Ajustes() {
   const isGuest = !!user?.is_anonymous;
   const providers = providersOf(user);
   const nombre = displayName(user);
+  const avatar = avatarUrlOf(user);
+  const tieneFotoPropia = !!customAvatarUrl(user);
+  const fotoDeLaCuenta = !!providerAvatarUrl(user);
+  // Google manda foto; Apple no. Con las dos vinculadas, la que vuelve es la de Google.
+  const cuentaConFoto = providers.includes('google') ? 'Google' : 'Apple';
 
   async function run(key: string, fn: () => Promise<unknown>) {
     setBusy(key);
@@ -86,6 +99,33 @@ export default function Ajustes() {
     } finally {
       setBusy(null);
     }
+  }
+
+  /**
+   * Tocar el avatar: elegir foto, sacarla con la cámara o volver a la de la
+   * cuenta vinculada (si no hay ninguna, queda la inicial).
+   */
+  async function editarAvatar() {
+    const quitar = tieneFotoPropia
+      ? [{ label: fotoDeLaCuenta ? `Usar la foto de ${cuentaConFoto}` : 'Quitar la foto', value: 'quitar' as const }]
+      : [];
+    const elegido = await overlay.pick<'galeria' | 'camara' | 'quitar'>(
+      'Foto de perfil',
+      [
+        { label: 'Elegir de mis fotos', value: 'galeria' },
+        { label: 'Sacar una foto', value: 'camara' },
+        ...quitar,
+      ],
+      tieneFotoPropia || !fotoDeLaCuenta
+        ? undefined
+        : `Ahora se usa la de ${cuentaConFoto}.`,
+    );
+    if (!elegido) return;
+
+    await run('avatar', async () => {
+      if (elegido === 'quitar') await removeCustomAvatar();
+      else await pickAndUploadAvatar(elegido === 'camara' ? 'camera' : 'library');
+    });
   }
 
   /**
@@ -160,7 +200,33 @@ export default function Ajustes() {
       {/* Cuenta */}
       <Card color={palette.salvia} style={{ marginTop: space.lg, padding: space.xl }}>
         <Row style={{ gap: space.lg }}>
-          <Avatar name={nombre} color={palette.marfil} size={54} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Cambiar la foto de perfil"
+            onPress={editarAvatar}
+            disabled={busy === 'avatar'}
+            style={({ pressed }) => ({ opacity: pressed || busy === 'avatar' ? 0.6 : 1 })}
+          >
+            <Avatar name={nombre} color={palette.marfil} size={54} uri={avatar} />
+            {/* Chapita de cámara: avisa que el avatar se toca. */}
+            <View
+              style={{
+                position: 'absolute',
+                right: -2,
+                bottom: -2,
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: palette.tinta,
+                borderWidth: 2,
+                borderColor: palette.salvia,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name="camera" size={11} color={palette.marfil} strokeWidth={2.6} />
+            </View>
+          </Pressable>
           <View style={{ flex: 1, gap: 2 }}>
             <Title style={{ fontSize: 22 }} color={palette.tinta} numberOfLines={1}>
               {nombre}

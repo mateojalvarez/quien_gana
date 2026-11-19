@@ -29,7 +29,8 @@ export type IconName =
   | 'users'
   | 'search'
   | 'noJuntos'
-  | 'barajar';
+  | 'barajar'
+  | 'camera';
 
 type Props = {
   name: IconName;
@@ -122,6 +123,12 @@ export function Icon({ name, size = 20, color = '#151110', strokeWidth = 2, fill
           <Circle cx={9} cy={8} r={3.5} {...stroke} />
           <Path d="M2.5 20c1-3.5 3.6-5.5 6.5-5.5s5.5 2 6.5 5.5" {...stroke} />
           <Path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.8.7 3 2.5 3.5 5.2" {...stroke} />
+        </>
+      )}
+      {name === 'camera' && (
+        <>
+          <Path d="M3 8.5h3.2l1.5-2.3h8.6l1.5 2.3H21v10.2H3z" {...stroke} />
+          <Circle cx={12} cy={13.3} r={3.6} {...stroke} />
         </>
       )}
       {/* dos renglones tachados: "no pueden estar juntos" */}

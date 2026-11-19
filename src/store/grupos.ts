@@ -84,6 +84,7 @@ export function memberRows(group: Group, locals: LocalMember[], meId: string | u
       kind: 'remote',
       id: m.userId,
       name: m.name,
+      avatarUrl: m.avatarUrl,
       isAdmin: m.role === 'admin',
       isMe: m.userId === meId,
     })),

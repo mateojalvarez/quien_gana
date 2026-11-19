@@ -49,6 +49,13 @@
       "expo-apple-authentication",
       "expo-web-browser",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Para elegir tu foto de perfil.",
+          "cameraPermission": "Para sacarte una foto de perfil."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#F6F4EF",

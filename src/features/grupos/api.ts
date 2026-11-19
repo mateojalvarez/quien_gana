@@ -13,12 +13,14 @@ type GroupRow = {
   group_members: { user_id: string; role: 'admin' | 'member'; joined_at: string }[];
 };
 
-/** Los nombres viven en profiles; RLS sólo deja ver los de mi propio grupo. */
-async function namesOf(userIds: string[]): Promise<Record<string, string>> {
+type Perfil = { name: string; avatarUrl: string | null };
+
+/** Nombre y foto viven en profiles; RLS sólo deja ver los de mi propio grupo. */
+async function profilesOf(userIds: string[]): Promise<Record<string, Perfil>> {
   if (userIds.length === 0) return {};
-  const { data } = await supabase.from('profiles').select('id, display_name').in('id', userIds);
-  const out: Record<string, string> = {};
-  for (const p of data ?? []) out[p.id] = p.display_name || 'Sin nombre';
+  const { data } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
+  const out: Record<string, Perfil> = {};
+  for (const p of data ?? []) out[p.id] = { name: p.display_name || 'Sin nombre', avatarUrl: p.avatar_url ?? null };
   return out;
 }
 
@@ -30,7 +32,7 @@ export async function listGroups(): Promise<Group[]> {
   if (error || !data) throw error ?? new Error('sin datos');
 
   const rows = data as unknown as GroupRow[];
-  const names = await namesOf([...new Set(rows.flatMap((g) => g.group_members.map((m) => m.user_id)))]);
+  const perfiles = await profilesOf([...new Set(rows.flatMap((g) => g.group_members.map((m) => m.user_id)))]);
 
   return rows.map((g) => ({
     id: g.id,
@@ -40,7 +42,8 @@ export async function listGroups(): Promise<Group[]> {
     members: g.group_members
       .map<RemoteMember>((m) => ({
         userId: m.user_id,
-        name: names[m.user_id] ?? 'Sin nombre',
+        name: perfiles[m.user_id]?.name ?? 'Sin nombre',
+        avatarUrl: perfiles[m.user_id]?.avatarUrl ?? null,
         role: m.role,
         joinedAt: m.joined_at,
       }))

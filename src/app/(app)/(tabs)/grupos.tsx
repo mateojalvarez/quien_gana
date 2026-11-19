@@ -138,6 +138,7 @@ export default function Grupos() {
                           <Avatar
                             key={m.userId}
                             name={m.name}
+                            uri={m.avatarUrl}
                             color={col === color ? palette.marfil : col}
                             size={32}
                             ring={color}

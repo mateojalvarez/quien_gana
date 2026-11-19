@@ -230,7 +230,7 @@ export default function GrupoDetalle() {
                   </Label>
                 </View>
               ) : (
-                <Avatar name={row.name} color={playerColor(i, scheme)} size={38} />
+                <Avatar name={row.name} color={playerColor(i, scheme)} size={38} uri={row.avatarUrl} />
               )}
 
               <View style={{ flex: 1, gap: 1 }}>
