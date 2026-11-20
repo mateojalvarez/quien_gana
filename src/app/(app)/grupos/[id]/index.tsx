@@ -171,8 +171,8 @@ export default function GrupoDetalle() {
     >
       {/* Grupo activo */}
       {activo ? (
-        <Card color={palette.mostaza} style={{ marginTop: space.lg, paddingRight: 96 }}>
-          <Clay name="corona" size={82} style={{ position: 'absolute', right: 6, top: -18 }} />
+        <Card color={palette.mostaza} style={{ marginTop: space.lg, paddingRight: 88, minHeight: 64 + space.md * 2 }}>
+          <Clay name="corona" size={64} style={{ position: 'absolute', right: space.md, top: space.md }} />
           <View style={{ padding: space.lg }}>
             <Body color={onPlayerColor} style={{ fontSize: 14, lineHeight: 19, fontFamily: fonts.semibold }}>
               Grupo activo: al abrir cualquier juego, sus integrantes ya aparecen cargados.

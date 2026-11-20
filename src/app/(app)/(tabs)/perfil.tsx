@@ -42,6 +42,8 @@ import {
   providerAvatarUrl,
   removeCustomAvatar,
 } from '@/lib/avatar';
+import { APODO_MAX, useApodo } from '@/features/perfil/apodo';
+import { haptic } from '@/lib/haptics';
 import { pull } from '@/lib/sync';
 import { useAuth } from '@/providers/auth-provider';
 import { useGames } from '@/store/games';
@@ -82,7 +84,29 @@ export default function Ajustes() {
 
   const isGuest = !!user?.is_anonymous;
   const providers = providersOf(user);
-  const nombre = displayName(user);
+  const nickname = useApodo((s) => s.nickname);
+  const nombre = displayName(user, nickname);
+
+  useEffect(() => {
+    if (user && !user.is_anonymous) useApodo.getState().cargar(user.id).catch(() => {});
+  }, [user]);
+
+  async function editarApodo() {
+    if (!user) return;
+    const valor = await overlay.prompt({
+      title: 'Tu apodo',
+      message: 'Es el nombre que ven en tus grupos. Dejalo vacío para usar el de tu cuenta.',
+      placeholder: displayName(user),
+      initial: nickname ?? '',
+      confirmLabel: 'Guardar',
+      maxLength: APODO_MAX,
+    });
+    if (valor === null) return;
+    await run('apodo', async () => {
+      await useApodo.getState().guardar(user.id, valor);
+      haptic.success();
+    });
+  }
   const avatar = avatarUrlOf(user);
   const tieneFotoPropia = !!customAvatarUrl(user);
   const fotoDeLaCuenta = !!providerAvatarUrl(user);
@@ -241,6 +265,36 @@ export default function Ajustes() {
         </Row>
       </Card>
 
+      {/* Apodo: el nombre que ven los grupos */}
+      {!isGuest ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar el apodo"
+          onPress={editarApodo}
+          disabled={busy === 'apodo'}
+          style={({ pressed }) => ({
+            marginTop: space.md,
+            minHeight: 56,
+            borderRadius: radius.field,
+            borderWidth: border,
+            borderColor: c.lineStrong,
+            paddingHorizontal: space.lg,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: space.md,
+            opacity: pressed || busy === 'apodo' ? 0.6 : 1,
+          })}
+        >
+          <View style={{ flex: 1, gap: 1 }}>
+            <Label>Apodo · lo ven tus grupos</Label>
+            <Title style={{ fontSize: 17 }} color={nickname ? c.ink : c.muted} numberOfLines={1}>
+              {nickname || 'Elegí cómo te ven'}
+            </Title>
+          </View>
+          <Icon name="chevronRight" size={18} color={c.muted} />
+        </Pressable>
+      ) : null}
+
       {/* Estadísticas */}
       <Row style={{ marginTop: space.md, gap: space.sm }}>
         {stats.map((s) => (
@@ -279,7 +333,7 @@ export default function Ajustes() {
         <Label style={{ marginBottom: space.sm }}>Tema</Label>
         <Segmented<ThemePref>
           options={[
-            { value: 'system', label: 'Sistema' },
+            { value: 'system', label: 'Por defecto' },
             { value: 'light', label: 'Claro' },
             { value: 'dark', label: 'Oscuro' },
           ]}

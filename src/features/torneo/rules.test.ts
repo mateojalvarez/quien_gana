@@ -15,6 +15,9 @@ import {
   iniciar,
   matchear,
   ordenSiembra,
+  puedeResortearCruces,
+  resortearCruces,
+  sortearCruces,
   pidePenales,
   puedeEditar,
   resolverPorSorteo,
@@ -346,5 +349,69 @@ describe('equipos por estrellas', () => {
     const pares = matchear(['a', 'b', 'c'], ['x', 'y', 'z'], semilla(3));
     assert.deepEqual(pares.map((p) => p.participante).sort(), ['a', 'b', 'c']);
     assert.deepEqual(pares.map((p) => p.equipo).sort(), ['x', 'y', 'z']);
+  });
+});
+
+describe('sorteo de cruces grupos → playoff', () => {
+  /** k grupos con q clasificados cada uno: g{grupo}-{puesto}. */
+  const armar = (k: number, q: number) => {
+    const puestos = Array.from({ length: q }, (_, puesto) => Array.from({ length: k }, (_, g) => `g${g}-${puesto}`));
+    const grupoDe = new Map(puestos.flat().map((id) => [id, Number(id.slice(1, id.indexOf('-')))] as const));
+    return { puestos, grupoDe };
+  };
+
+  for (const [k, q] of [[2, 2], [3, 2], [4, 2], [5, 2], [6, 2], [8, 2], [4, 3], [3, 3], [2, 4], [8, 1]] as const) {
+    it(`${k} grupos × ${q}: ningún 1° contra 1° y nadie contra su grupo`, () => {
+      const { puestos, grupoDe } = armar(k, q);
+      const primeros = new Set(puestos[0]);
+      for (let s = 1; s <= 25; s++) {
+        const llaves = sortearCruces(puestos, grupoDe, semilla(s));
+        const primera = llaves.filter((l) => l.ronda === 0);
+        const todos = primera.flatMap((l) => [l.a, l.b]).filter(Boolean);
+        assert.equal(new Set(todos).size, k * q, 'cada clasificado una sola vez');
+        for (const l of primera) {
+          if (l.bye || !l.a || !l.b) continue;
+          // Con un solo clasificado por grupo, 1° contra 1° es inevitable.
+          if (q > 1) assert.ok(!(primeros.has(l.a) && primeros.has(l.b)), `1° vs 1°: ${l.a} ${l.b}`);
+          assert.notEqual(grupoDe.get(l.a), grupoDe.get(l.b), `mismo grupo: ${l.a} ${l.b}`);
+        }
+      }
+    });
+  }
+
+  it('los 1° quedan en mitades distintas y los byes son para ellos', () => {
+    const { puestos, grupoDe } = armar(3, 2); // 6 → cuadro de 8, 2 byes
+    for (let s = 1; s <= 20; s++) {
+      const primera = sortearCruces(puestos, grupoDe, semilla(s)).filter((l) => l.ronda === 0);
+      const byes = primera.filter((l) => l.bye);
+      assert.equal(byes.length, 2);
+      for (const l of byes) assert.ok(puestos[0].includes(l.a!));
+      const posDe = (id: string) => primera.find((l) => l.a === id || l.b === id)!.pos;
+      const enMitad = [0, 1].map((h) => puestos[0].filter((id) => (posDe(id) < 2 ? 0 : 1) === h).length);
+      assert.ok(enMitad.every((n) => n >= 1), 'hay 1° en las dos mitades');
+    }
+  });
+
+  it('misma semilla, mismo cuadro; otra semilla puede cambiarlo', () => {
+    const { puestos, grupoDe } = armar(4, 2);
+    assert.deepEqual(sortearCruces(puestos, grupoDe, semilla(3)), sortearCruces(puestos, grupoDe, semilla(3)));
+    const distintos = new Set(
+      Array.from({ length: 10 }, (_, s) => JSON.stringify(sortearCruces(puestos, grupoDe, semilla(s + 1)))),
+    );
+    assert.ok(distintos.size > 1);
+  });
+
+  it('se puede re-sortear hasta que se juega un partido del cuadro', () => {
+    let d = iniciar(torneo(8, { tipo: 'grupos', grupos: { cantidad: 2, clasificanPorGrupo: 2 } }, 2), semilla(7));
+    d.partidos.forEach((p, i) => (d = cargarResultado(d, p.id, i + 1, 0)));
+    assert.ok(d.llaves?.length && d.semillaCruces != null);
+    assert.ok(puedeResortearCruces(d));
+    const otro = resortearCruces(d, 12345);
+    assert.equal(otro.semillaCruces, 12345);
+    assert.equal(otro.llaves!.filter((l) => l.ronda === 0).length, 2);
+    const p = otro.partidos.find((x) => x.etapa === 'playoff')!;
+    const jugado = cargarResultado(otro, p.id, 1, 0);
+    assert.ok(!puedeResortearCruces(jugado));
+    assert.equal(resortearCruces(jugado), jugado);
   });
 });

@@ -21,7 +21,12 @@
         "CFBundleLocalizations": [
           "es"
         ],
-        "NSSupportsLiveActivities": true
+        "NSSupportsLiveActivities": true,
+        "NSLocalNetworkUsageDescription": "Para encontrar salas del Pulsador en tu misma red wifi.",
+        "NSBonjourServices": [
+          "_quiengana._tcp"
+        ],
+        "NSAlarmKitUsageDescription": "Para que el reloj suene y vibre fuerte al terminar, aunque el teléfono esté bloqueado o en silencio."
       },
       "appleTeamId": "X77V463WTL",
       "associatedDomains": [
@@ -30,7 +35,8 @@
       "entitlements": {
         "com.apple.security.application-groups": [
           "group.com.mateoalvarez.quiengana"
-        ]
+        ],
+        "com.apple.developer.usernotifications.time-sensitive": true
       }
     },
     "android": {
@@ -41,7 +47,12 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_WIFI_MULTICAST_STATE"
+      ]
     },
     "web": {
       "output": "single",
@@ -79,7 +90,24 @@
           }
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Para escanear el QR de una sala del Pulsador o de un torneo.",
+          "recordAudioAndroid": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "sounds": [
+            "./assets/sonidos/alarma.wav"
+          ],
+          "enableRemoteNotifications": false
+        }
+      ]
     ],
     "experiments": {
       "reactCompiler": true

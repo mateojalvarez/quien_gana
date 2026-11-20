@@ -145,7 +145,7 @@ export default function NuevaPartida() {
       meta={{ anotador: 'Anotador', corazones: 'Corazones', generala: 'Generala' }[kind]}
       decor={
         <View style={{ position: 'absolute', right: -8, top: 4 }} pointerEvents="none">
-          <Clay name={kind === 'corazones' ? 'corazon' : kind === 'generala' ? 'dado' : 'lapiz'} size={96} />
+          <Clay name={kind === 'corazones' ? 'corazon' : kind === 'generala' ? 'generala' : 'lapiz'} size={96} />
         </View>
       }
       footer={

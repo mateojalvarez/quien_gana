@@ -18,12 +18,26 @@ export type EstadoTruco = {
 
 export type AccionPendiente = { tipo: 'sumar'; equipo: number } | { tipo: 'deshacer' };
 
+export type EstadoReloj = {
+  /** Epoch en ms en que llega a cero (si corre). */
+  finMs: number;
+  duracionMs: number;
+  restanteMs: number;
+  pausado: boolean;
+};
+
+/** Cómo quedó el reloj afuera de la app: alarma de AlarmKit (iOS 26+), Live Activity o nada. */
+export type ModoReloj = 'alarma' | 'actividad' | '';
+
 type Nativo = {
   soportado: () => boolean;
   iniciarTruco: (estado: EstadoTruco) => string | null;
   actualizarTruco: (estado: EstadoTruco) => void;
   terminarTruco: (partidaId: string | null) => void;
   tomarPendientes: () => { partidaId: string; acciones: AccionPendiente[] };
+  permisoAlarma?: () => Promise<boolean>;
+  reloj?: (estado: EstadoReloj) => Promise<ModoReloj>;
+  terminarReloj?: (llego: boolean, enPantalla: boolean) => Promise<void>;
 };
 
 const nativo = requireOptionalNativeModule<Nativo>('LiveActivity');
@@ -68,5 +82,33 @@ export const tomarPendientes = (): { partidaId: string; acciones: AccionPendient
     return nativo?.tomarPendientes() ?? NADA;
   } catch {
     return NADA;
+  }
+};
+
+/* ───────────── Reloj ───────────── */
+
+/** iOS 26+: permiso para que el reloj sea una alarma del sistema. */
+export const permisoAlarma = async (): Promise<boolean> => {
+  try {
+    return (await nativo?.permisoAlarma?.()) ?? false;
+  } catch {
+    return false;
+  }
+};
+
+export const reloj = async (estado: EstadoReloj): Promise<ModoReloj> => {
+  try {
+    return (await nativo?.reloj?.(estado)) ?? '';
+  } catch {
+    return '';
+  }
+};
+
+/** `llego`: terminó la cuenta (si no, se reinició o se salió). `enPantalla`: la app está abierta. */
+export const terminarReloj = async (llego: boolean, enPantalla: boolean): Promise<void> => {
+  try {
+    await nativo?.terminarReloj?.(llego, enPantalla);
+  } catch {
+    // ídem
   }
 };

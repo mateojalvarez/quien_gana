@@ -5,8 +5,9 @@ import { Pressable, Text, View } from 'react-native';
 import { Clay } from '@/components/clay';
 import { Icon } from '@/components/icons';
 import { Notice, useOverlay } from '@/components/overlay';
-import { EquipoChico, Escudo, Hoja, TablaPosiciones } from '@/components/torneo-parts';
-import { Body, Button, IconButton, Label, Row, Screen, Segmented, Stepper, Title } from '@/components/ui';
+import { CuadroVisual } from '@/components/torneo-cuadro';
+import { EquipoChico, Hoja, TablaPosiciones } from '@/components/torneo-parts';
+import { Body, Button, IconButton, Label, Row, Screen, Segmented, Spinner, Stepper, Title } from '@/components/ui';
 import {
   cargarResultado,
   crearDesempate,
@@ -17,33 +18,90 @@ import {
   nombreRonda,
   pidePenales,
   puedeEditar,
+  puedeResortearCruces,
   resolverPorSorteo,
-  resultadoLlave,
+  resortearCruces,
   resumen,
   tablaLiga,
   tablasDeGrupos,
   type Empate,
 } from '@/features/torneo/rules';
+import { dejarDeSeguir, useCambiosDeEditores, useTorneoRemoto, type RolTorneo } from '@/features/torneo/compartido';
 import type { Partido } from '@/features/torneo/types';
 import type { TorneoGame } from '@/features/types';
 import { haptic } from '@/lib/haptics';
+import { useAuth } from '@/providers/auth-provider';
 import { useGames } from '@/store/games';
 import { border, fonts, palette, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
 type Vista = 'tabla' | 'partidos' | 'cuadro';
 
+type Actualizar = (cambio: (g: TorneoGame) => TorneoGame) => void | Promise<void>;
+
 export default function TorneoRuta() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const juego = useGames((s) => s.games[id]);
-  if (!juego || juego.kind !== 'torneo') return <Redirect href="/" />;
+  // Lo que carguen los editores llega a la copia local del anfitrión.
+  useCambiosDeEditores(id, juego?.kind === 'torneo');
+  if (!juego) return <TorneoAjeno id={id} />;
+  if (juego.kind !== 'torneo') return <Redirect href="/" />;
   if (juego.fase === 'sorteo') return <Redirect href={`/torneo/${juego.id}/sorteo` as Href} />;
-  return <Torneo juego={juego} />;
+  return (
+    <Torneo juego={juego} rol="anfitrion" actualizar={(cambio) => useGames.getState().actualizarTorneo(juego.id, cambio)} />
+  );
 }
 
-function Torneo({ juego }: { juego: TorneoGame }) {
+/** Un torneo de otro, compartido por grupo o enlace: en vivo desde la base. */
+function TorneoAjeno({ id }: { id: string }) {
+  const { c } = useTheme();
+  const miId = useAuth().session?.user.id;
+  const { estado, actualizar } = useTorneoRemoto(id, miId);
+  if (estado.paso === 'cargando') {
+    return (
+      <Screen title="Torneo" scroll={false}>
+        <View style={{ marginTop: space.xl }}>
+          <Spinner color={c.muted} />
+        </View>
+      </Screen>
+    );
+  }
+  if (estado.paso !== 'listo') {
+    return (
+      <Screen title={estado.paso === 'no-existe' ? 'No lo encontramos' : 'Sin conexión'} scroll={false}>
+        <Body color={c.muted} style={{ marginTop: space.lg }}>
+          {estado.paso === 'no-existe'
+            ? 'Este torneo no existe o ya no está compartido con vos.'
+            : 'No pudimos traer el torneo. Revisá internet y probá de nuevo.'}
+        </Body>
+        <Button label="Volver" variant="outline" style={{ marginTop: space.xl }} onPress={() => router.back()} />
+      </Screen>
+    );
+  }
+  return (
+    <Torneo juego={estado.juego} rol={estado.rol} actualizar={estado.rol === 'espectador' ? undefined : actualizar} />
+  );
+}
+
+function Torneo({ juego, rol, actualizar }: { juego: TorneoGame; rol: RolTorneo; actualizar?: Actualizar }) {
   const overlay = useOverlay();
-  const { actualizarTorneo, remove, rename } = useGames.getState();
+  const { remove, rename } = useGames.getState();
+  const { c } = useTheme();
+  const miId = useAuth().session?.user.id;
+  const esAnfitrion = rol === 'anfitrion';
+
+  /** Corre el cambio y avisa si falló (los ajenos van por red). */
+  async function aplicar(cambio: (g: TorneoGame) => TorneoGame): Promise<boolean> {
+    if (!actualizar) return false;
+    try {
+      await actualizar(cambio);
+      return true;
+    } catch (e) {
+      haptic.warning();
+      await overlay.notice({ title: 'No se guardó', message: (e as Error).message ?? 'Probá de nuevo.' });
+      return false;
+    }
+  }
 
   const hayCuadro = !!(juego.llaves && juego.llaves.length);
   const vistas: { value: Vista; label: string }[] =
@@ -73,10 +131,32 @@ function Torneo({ juego }: { juego: TorneoGame }) {
     await overlay.menu({
       title: juego.title,
       message: `${r.etapa} · ${r.jugados}/${r.total} partidos`,
-      items: [
+      items: !esAnfitrion
+        ? [
+            {
+              label: 'Dejar de verlo',
+              icon: 'close',
+              destructive: true,
+              onPress: async () => {
+                if (!miId) return;
+                try {
+                  await dejarDeSeguir(juego.id, miId);
+                } catch {
+                  // Si lo ve por el grupo no hay acceso propio que borrar.
+                }
+                router.back();
+              },
+            },
+          ]
+        : [
+        {
+          label: 'Compartir y permisos',
+          icon: 'share',
+          onPress: () => router.push(`/torneo/${juego.id}/compartir` as Href),
+        },
         {
           label: 'Renombrar',
-          icon: 'sliders',
+          icon: 'pencil',
           onPress: async () => {
             const t = await overlay.prompt({ title: 'Nombre del torneo', initial: juego.title, maxLength: 40 });
             if (t?.trim()) rename(juego.id, t.trim());
@@ -103,6 +183,7 @@ function Torneo({ juego }: { juego: TorneoGame }) {
   }
 
   function abrir(p: Partido) {
+    if (!actualizar) return;
     if (!puedeEditar(juego, p)) {
       haptic.warning();
       overlay.notice({
@@ -119,14 +200,25 @@ function Torneo({ juego }: { juego: TorneoGame }) {
   }
 
   async function resolver(e: Empate) {
+    if (!actualizar) return;
     const nombres = e.ids.map((x) => nombreDe(juego, x)).join(', ');
     const opciones: { label: string; value: 'sorteo' | 'partido' }[] = [{ label: 'Sortear quién queda arriba', value: 'sorteo' }];
     if (e.ids.length === 2) opciones.push({ label: 'Jugar un partido desempate', value: 'partido' });
     const que = await overlay.pick('Empate total', opciones, `${nombres} quedaron iguales en puntos, diferencia y goles en contra.`);
     if (!que) return;
+    if (!(await aplicar((g) => (que === 'sorteo' ? resolverPorSorteo(g, e) : crearDesempate(g, e))))) return;
     haptic.success();
-    actualizarTorneo(juego.id, (g) => (que === 'sorteo' ? resolverPorSorteo(g, e) : crearDesempate(g, e)));
     if (que === 'partido') setVista('partidos');
+  }
+
+  async function resortear() {
+    const ok = await overlay.confirm({
+      title: '¿Volver a sortear los cruces?',
+      message: 'Se arma otro cuadro con las mismas reglas: ningún 1° contra otro 1° ni contra alguien de su grupo.',
+      confirmLabel: 'Sortear de nuevo',
+    });
+    if (!ok) return;
+    if (await aplicar((g) => resortearCruces(g))) haptic.success();
   }
 
   const campeon = juego.campeon ? juego.participantes.find((p) => p.id === juego.campeon) : null;
@@ -139,8 +231,8 @@ function Torneo({ juego }: { juego: TorneoGame }) {
       right={<IconButton name="sliders" label="Opciones del torneo" onPress={menu} />}
     >
       {campeon ? (
-        <View style={{ marginTop: space.lg, borderRadius: radius.cardLg, backgroundColor: palette.mostaza, padding: space.xl, gap: space.xs }}>
-          <Clay name="corona" size={72} style={{ position: 'absolute', right: 12, top: -18 }} />
+        <View style={{ marginTop: space.lg, borderRadius: radius.cardLg, backgroundColor: palette.mostaza, padding: space.xl, paddingRight: 92, gap: space.xs, overflow: 'hidden' }}>
+          <Clay name="corona" size={60} style={{ position: 'absolute', right: space.lg, top: space.lg }} />
           <Label color={palette.tinta}>Campeón</Label>
           <Text style={{ fontFamily: fonts.black, fontSize: 32, color: palette.tinta, letterSpacing: -0.8 }} numberOfLines={2}>
             {campeon.nombre}
@@ -180,6 +272,17 @@ function Torneo({ juego }: { juego: TorneoGame }) {
         );
       })}
 
+      {!esAnfitrion ? (
+        <Row style={{ marginTop: space.lg, gap: space.sm }}>
+          <Icon name={rol === 'editor' ? 'pencil' : 'eye'} size={16} color={c.muted} />
+          <Label style={{ flex: 1 }}>
+            {rol === 'editor'
+              ? 'Podés cargar resultados: el anfitrión te dio permiso.'
+              : 'Estás mirando: se actualiza solo cuando se cargan resultados.'}
+          </Label>
+        </Row>
+      ) : null}
+
       <Segmented style={{ marginTop: space.xl }} options={vistas} value={vista} onChange={setVista} />
 
       <View style={{ marginTop: space.lg, gap: space.lg }}>
@@ -195,8 +298,10 @@ function Torneo({ juego }: { juego: TorneoGame }) {
               />
             ))
           : null}
-        {vista === 'partidos' ? <ListaPartidos juego={juego} onAbrir={abrir} /> : null}
-        {vista === 'cuadro' ? <Cuadro juego={juego} onAbrir={abrir} /> : null}
+        {vista === 'partidos' ? <ListaPartidos juego={juego} onAbrir={abrir} soloLectura={!actualizar} /> : null}
+        {vista === 'cuadro' ? (
+          <Cuadro juego={juego} onAbrir={actualizar ? abrir : undefined} onResortear={esAnfitrion ? resortear : undefined} />
+        ) : null}
       </View>
 
       <View style={{ height: space.huge }} />
@@ -207,14 +312,20 @@ function Torneo({ juego }: { juego: TorneoGame }) {
         partido={editando}
         futbol={futbol}
         onCerrar={() => setEditando(null)}
-        onGuardar={(gl, gv, penales) => {
+        onGuardar={async (gl, gv, penales) => {
           if (!editando) return;
-          const antes = juego.campeon;
-          actualizarTorneo(juego.id, (g) => cargarResultado(g, editando.id, gl, gv, penales));
-          const despues = useGames.getState().games[juego.id];
-          if (despues?.kind === 'torneo' && despues.campeon && despues.campeon !== antes) haptic.heavy();
-          else haptic.success();
+          const partido = editando;
           setEditando(null);
+          const antes = juego.campeon;
+          let campeon: string | null | undefined;
+          const ok = await aplicar((g) => {
+            const nuevo = cargarResultado(g, partido.id, gl, gv, penales);
+            campeon = nuevo.campeon;
+            return nuevo;
+          });
+          if (!ok) return;
+          if (campeon && campeon !== antes) haptic.heavy();
+          else haptic.success();
         }}
       />
     </View>
@@ -233,7 +344,15 @@ function seccionDe(p: Partido, juego: TorneoGame): string {
   return `Fecha ${p.ronda + 1}`;
 }
 
-function ListaPartidos({ juego, onAbrir }: { juego: TorneoGame; onAbrir: (p: Partido) => void }) {
+function ListaPartidos({
+  juego,
+  onAbrir,
+  soloLectura,
+}: {
+  juego: TorneoGame;
+  onAbrir: (p: Partido) => void;
+  soloLectura?: boolean;
+}) {
   const { c } = useTheme();
   // Orden de juego: grupos/liga por fecha, después el cuadro ronda por ronda con
   // todas las idas antes que las vueltas, y los desempates al final.
@@ -261,7 +380,7 @@ function ListaPartidos({ juego, onAbrir }: { juego: TorneoGame; onAbrir: (p: Par
             </Label>
           </Row>
           {s.partidos.map((p) => (
-            <FilaPartido key={p.id} juego={juego} p={p} onPress={() => onAbrir(p)} />
+            <FilaPartido key={p.id} juego={juego} p={p} onPress={soloLectura ? undefined : () => onAbrir(p)} />
           ))}
         </View>
       ))}
@@ -269,7 +388,7 @@ function ListaPartidos({ juego, onAbrir }: { juego: TorneoGame; onAbrir: (p: Par
   );
 }
 
-function FilaPartido({ juego, p, onPress }: { juego: TorneoGame; p: Partido; onPress: () => void }) {
+function FilaPartido({ juego, p, onPress }: { juego: TorneoGame; p: Partido; onPress?: () => void }) {
   const { c } = useTheme();
   const local = juego.participantes.find((x) => x.id === p.local);
   const visit = juego.participantes.find((x) => x.id === p.visitante);
@@ -281,6 +400,7 @@ function FilaPartido({ juego, p, onPress }: { juego: TorneoGame; p: Partido; onP
       accessibilityRole="button"
       accessibilityLabel={`${local?.nombre} contra ${visit?.nombre}`}
       onPress={onPress}
+      disabled={!onPress}
       style={({ pressed }) => ({
         minHeight: 64,
         borderRadius: radius.field,
@@ -325,7 +445,16 @@ function FilaPartido({ juego, p, onPress }: { juego: TorneoGame; p: Partido; onP
 
 /* ───────────── Cuadro ───────────── */
 
-function Cuadro({ juego, onAbrir }: { juego: TorneoGame; onAbrir: (p: Partido) => void }) {
+function Cuadro({
+  juego,
+  onAbrir,
+  onResortear,
+}: {
+  juego: TorneoGame;
+  onAbrir?: (p: Partido) => void;
+  /** Sólo para quien maneja el torneo, y mientras no se jugó nada del cuadro. */
+  onResortear?: () => void;
+}) {
   const { c } = useTheme();
   const llaves = juego.llaves ?? [];
   if (llaves.length === 0) {
@@ -333,74 +462,21 @@ function Cuadro({ juego, onAbrir }: { juego: TorneoGame; onAbrir: (p: Partido) =
       <View style={{ alignItems: 'center', gap: space.sm, paddingVertical: space.xl }}>
         <Icon name="flag" size={28} color={c.muted} />
         <Body color={c.muted} style={{ textAlign: 'center' }}>
-          El cuadro se arma solo cuando termina la fase de grupos.
+          Cuando termine la fase de grupos se sortean los cruces: un 1° nunca se cruza con otro 1°, ni con alguien de su grupo.
         </Body>
       </View>
     );
   }
-  const total = Math.max(...llaves.map((l) => l.ronda)) + 1;
   return (
-    <>
-      {Array.from({ length: total }, (_, ronda) => (
-        <View key={ronda} style={{ gap: space.sm }}>
-          <Title style={{ fontSize: 17 }}>{nombreRonda(ronda, total)}</Title>
-          {llaves
-            .filter((l) => l.ronda === ronda)
-            .map((l) => {
-              const res = resultadoLlave(l, juego.partidos);
-              const partidos = juego.partidos.filter((p) => p.llave === l.id);
-              const pendiente = partidos.find((p) => !jugado(p)) ?? partidos[partidos.length - 1];
-              const linea = (pid: string | null, goles: number, gana: boolean) => {
-                const p = pid ? juego.participantes.find((x) => x.id === pid) : null;
-                return (
-                  <Row style={{ gap: space.sm }}>
-                    {p?.equipo ? <Escudo nombre={p.equipo.nombre} size={24} /> : <View style={{ width: 24 }} />}
-                    <Label
-                      color={pid ? c.ink : c.hint}
-                      numberOfLines={1}
-                      style={{ flex: 1, fontSize: 15, fontFamily: gana ? fonts.black : fonts.semibold }}
-                    >
-                      {pid ? (p?.nombre ?? '—') : 'A definir'}
-                    </Label>
-                    {!l.bye && partidos.some(jugado) ? (
-                      <Text style={{ fontFamily: fonts.black, fontSize: 17, color: c.ink, fontVariant: ['tabular-nums'] }}>{goles}</Text>
-                    ) : null}
-                  </Row>
-                );
-              };
-              return (
-                <Pressable
-                  key={l.id}
-                  accessibilityRole="button"
-                  disabled={l.bye || !pendiente}
-                  onPress={() => pendiente && onAbrir(pendiente)}
-                  style={({ pressed }) => ({
-                    borderRadius: radius.field,
-                    borderWidth: border,
-                    borderColor: res.ganador ? c.line : c.lineStrong,
-                    padding: space.md,
-                    gap: 6,
-                    opacity: pressed ? 0.7 : 1,
-                  })}
-                >
-                  {linea(l.a, res.global[0], !!res.ganador && res.ganador === l.a && !l.bye)}
-                  {l.bye ? (
-                    <Label style={{ fontSize: 13, marginLeft: 32 }}>Pasa directo</Label>
-                  ) : (
-                    linea(l.b, res.global[1], !!res.ganador && res.ganador === l.b)
-                  )}
-                  {res.faltanPenales ? <Label style={{ fontSize: 13 }}>Global igualado: faltan los penales.</Label> : null}
-                  {partidos.length === 2 && partidos.some(jugado) ? (
-                    <Label style={{ fontSize: 12 }}>
-                      {partidos.map((p) => (jugado(p) ? `${p.pierna === 1 ? 'Ida' : 'Vuelta'} ${p.gl}-${p.gv}` : null)).filter(Boolean).join(' · ')}
-                    </Label>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-        </View>
-      ))}
-    </>
+    <View style={{ gap: space.md }}>
+      {juego.formato.tipo === 'grupos' && onResortear && puedeResortearCruces(juego) ? (
+        <Row style={{ justifyContent: 'space-between', gap: space.md }}>
+          <Label style={{ flex: 1 }}>Cruces sorteados. Hasta que se juegue un partido se pueden volver a sortear.</Label>
+          <Button label="Re-sortear" icon="barajar" size="sm" variant="outline" onPress={onResortear} />
+        </Row>
+      ) : null}
+      <CuadroVisual juego={juego} onAbrir={onAbrir} />
+    </View>
   );
 }
 

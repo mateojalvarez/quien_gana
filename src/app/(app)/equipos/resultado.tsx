@@ -149,10 +149,10 @@ export default function ResultadoEquipos() {
         {equipos.map((eq, i) => (
           <View
             key={i}
-            style={{ borderRadius: 26, backgroundColor: COLORES[i % COLORES.length], padding: space.lg }}
+            style={{ borderRadius: 26, backgroundColor: COLORES[i % COLORES.length], padding: space.lg, overflow: 'hidden' }}
           >
             {i === 0 ? (
-              <Clay name="corona" size={76} style={{ position: 'absolute', right: -6, top: -24 }} />
+              <Clay name="corona" size={52} style={{ position: 'absolute', right: space.md, top: space.md }} />
             ) : null}
             <Row style={{ gap: space.sm, alignItems: 'baseline', paddingRight: i === 0 ? 70 : 0 }}>
               <Display style={{ fontSize: 24, lineHeight: 29 }} color={onPlayerColor} numberOfLines={1}>

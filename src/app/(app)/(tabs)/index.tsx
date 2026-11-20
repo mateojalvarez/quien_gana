@@ -1,9 +1,10 @@
-import { router, type Href } from 'expo-router';
-import { useMemo } from 'react';
+import { router, useFocusEffect, type Href } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Clay } from '@/components/clay';
+import { useGameMenu } from '@/components/game-parts';
 import { Icon } from '@/components/icons';
 import { TAB_BAR_SPACE } from '@/components/tab-bar';
 import { Avatar, Body, Card, Display, Label, Num, Row, Rule, SectionHead, Tag, Title } from '@/components/ui';
@@ -13,7 +14,9 @@ import { standings as corazonesStandings } from '@/features/corazones/rules';
 import { posiciones as generalaPosiciones, rondas as generalaRondas } from '@/features/generala/rules';
 import { nombreDe, resumen as torneoResumen, tablaLiga } from '@/features/torneo/rules';
 import { scores as trucoScores, summary as trucoSummary } from '@/features/truco/rules';
-import type { Game } from '@/features/types';
+import type { Game, TorneoGame } from '@/features/types';
+import { useApodo } from '@/features/perfil/apodo';
+import { torneosCompartidos } from '@/features/torneo/compartido';
 import { displayName } from '@/lib/auth';
 import { haptic } from '@/lib/haptics';
 import { useAuth } from '@/providers/auth-provider';
@@ -107,7 +110,25 @@ export default function Inicio() {
   const favs = useMemo(() => favoriteTools(favorites), [favorites]);
   const freq = useMemo(() => frequentTools(plays, { exclude: favorites }), [plays, favorites]);
 
-  const nombre = displayName(session?.user);
+  const abrirMenu = useGameMenu();
+
+  // Torneos de otros que veo (por grupo o enlace): se refrescan al volver acá.
+  const [compartidos, setCompartidos] = useState<TorneoGame[]>([]);
+  const miId = session?.user.id;
+  useFocusEffect(
+    useCallback(() => {
+      if (!miId) return;
+      torneosCompartidos(miId)
+        .then(setCompartidos)
+        .catch(() => {});
+    }, [miId]),
+  );
+  const nickname = useApodo((s) => s.nickname);
+  const nombre = displayName(session?.user, nickname);
+  useEffect(() => {
+    const u = session?.user;
+    if (u && !u.is_anonymous) useApodo.getState().cargar(u.id).catch(() => {});
+  }, [session?.user]);
   const enCurso = list.find((g) => !g.finishedAt && jugadas(g) > 0) ?? list.find((g) => !g.finishedAt);
 
   /** Único camino para abrir un juego: así el conteo de frecuentes no se escapa. */
@@ -179,11 +200,11 @@ export default function Inicio() {
                   : enCurso.kind === 'truco'
                     ? 'cartasEspanolas'
                     : enCurso.kind === 'generala'
-                      ? 'dado'
+                      ? 'generala'
                       : 'lapiz'
               }
-              size={96}
-              style={{ position: 'absolute', right: 12, top: -14 }}
+              size={80}
+              style={{ position: 'absolute', right: space.md, top: space.md }}
             />
             <View style={{ padding: space.lg, flex: 1, justifyContent: 'space-between' }}>
               <View style={{ gap: 1 }}>
@@ -239,7 +260,6 @@ export default function Inicio() {
               <Body color={c.muted}>Marcá tus juegos con la estrella en Juegos y van a aparecer acá.</Body>
             </Pressable>
           ) : (
-            // 18px de aire extra: la arcilla de estas tarjetas sobresale hacia arriba.
             <Row style={{ marginTop: space.lg, flexWrap: 'wrap', gap: space.sm, alignItems: 'flex-start' }}>
               {favs.map((t) => (
                 <Card
@@ -248,12 +268,12 @@ export default function Inicio() {
                   onPress={() => abrir(t)}
                   style={{ width: '48.4%', height: 104, justifyContent: 'flex-end' }}
                 >
-                  <Clay name={t.clay} size={70} style={{ position: 'absolute', right: -6, top: -16 }} />
+                  <Clay name={t.clay} size={52} style={{ position: 'absolute', right: space.sm, top: space.sm }} />
                   <View style={{ padding: space.lg, gap: 1 }}>
                     <Label color={onPlayerColor} style={{ fontSize: 12 }}>
                       {t.kicker}
                     </Label>
-                    <Title style={{ fontSize: 19 }} color={onPlayerColor} numberOfLines={1}>
+                    <Title style={{ fontSize: 19 }} color={onPlayerColor} numberOfLines={1} adjustsFontSizeToFit>
                       {t.name}
                     </Title>
                   </View>
@@ -312,6 +332,47 @@ export default function Inicio() {
           </View>
         ) : null}
 
+        {/* Torneos de otros */}
+        {compartidos.length > 0 ? (
+          <View style={{ marginTop: space.huge }}>
+            <SectionHead title="Torneos compartidos" meta={`${compartidos.length}`} />
+            <View style={{ gap: space.sm, marginTop: space.xs }}>
+              {compartidos.map((t) => (
+                <Pressable
+                  key={t.id}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    haptic.tap();
+                    router.push(`/torneo/${t.id}` as Href);
+                  }}
+                  style={({ pressed }) => ({
+                    minHeight: 64,
+                    borderRadius: radius.field,
+                    backgroundColor: palette.salvia,
+                    paddingHorizontal: space.lg,
+                    paddingVertical: space.md,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: space.md,
+                    opacity: pressed ? 0.75 : 1,
+                  })}
+                >
+                  <View style={{ flex: 1, gap: 1 }}>
+                    <Title style={{ fontSize: 17 }} color={onPlayerColor} numberOfLines={1}>
+                      {t.title}
+                    </Title>
+                    <Label color={onPlayerColor} numberOfLines={1}>
+                      {t.grupoNombre ? `${t.grupoNombre} · ` : ''}
+                      {t.fase === 'terminado' ? 'Terminado' : 'En juego'}
+                    </Label>
+                  </View>
+                  <Icon name="chevronRight" size={18} color={onPlayerColor} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         {/* Partidas guardadas */}
         <View style={{ marginTop: space.huge }}>
           <SectionHead title="Partidas" meta={`${list.length} ${list.length === 1 ? 'guardada' : 'guardadas'}`} />
@@ -331,10 +392,16 @@ export default function Inicio() {
                   <Pressable
                     key={g.id}
                     accessibilityRole="button"
+                    accessibilityHint="Mantené apretado para ver más acciones"
                     onPress={() => {
                       haptic.tap();
                       router.push(hrefOf(g));
                     }}
+                    onLongPress={() => {
+                      haptic.heavy();
+                      abrirMenu(g, { enLista: true, onAbrir: () => router.push(hrefOf(g)) });
+                    }}
+                    delayLongPress={350}
                     style={({ pressed }) => ({
                       minHeight: 72,
                       borderRadius: radius.field,

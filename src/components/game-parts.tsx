@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import type { Game, Player } from '@/features/types';
@@ -21,28 +21,61 @@ function resumen(game: Game): string {
   return `${NOMBRE[game.kind]} · ${n} ${n === 1 ? 'ronda' : 'rondas'}`;
 }
 
-/** Menú de la partida: hoja propia, nunca el ActionSheet del sistema. */
-export function GameMenu({ game }: { game: Game }) {
-  const { c } = useTheme();
+/**
+ * Las acciones de una partida, en una hoja propia (nunca el ActionSheet del
+ * sistema). La usan el botón "Opciones" adentro de la partida y el mantener
+ * apretada una tarjeta en la lista de Partidas.
+ */
+export function useGameMenu() {
   const overlay = useOverlay();
-  const { undoRound, finish, remove } = useGames.getState();
 
-  async function open() {
+  return async function abrirMenu(game: Game, opts: { enLista?: boolean; onAbrir?: () => void } = {}) {
+    const { undoRound, finish, remove, rename } = useGames.getState();
+    // En Generala cada anotación cierra una categoría y pasa el turno: no hay
+    // nada que deshacer sin reescribir la planilla de otro. Los torneos tienen
+    // su propio menú adentro.
+    const deshacer =
+      game.kind === 'generala' || game.kind === 'torneo' || opts.enLista
+        ? []
+        : [
+            {
+              label: game.kind === 'truco' ? 'Deshacer el último punto' : 'Deshacer última ronda',
+              icon: 'undo' as const,
+              onPress: () => undoRound(game.id),
+            },
+          ];
+
     await overlay.menu({
       title: game.title,
       message: resumen(game),
       items: [
-        // En Generala cada anotación cierra una categoría y pasa el turno:
-        // no hay nada que deshacer sin reescribir la planilla de otro.
-        ...(game.kind === 'generala'
-          ? []
-          : [
+        ...(opts.onAbrir ? [{ label: 'Abrir', icon: 'arrowRight' as const, onPress: opts.onAbrir }] : []),
+        ...deshacer,
+        ...(game.kind === 'torneo'
+          ? [
               {
-                label: game.kind === 'truco' ? 'Deshacer el último punto' : 'Deshacer última ronda',
-                icon: 'undo' as const,
-                onPress: () => undoRound(game.id),
+                label: 'Compartir y permisos',
+                icon: 'share' as const,
+                onPress: () => router.push(`/torneo/${game.id}/compartir` as Href),
               },
-            ]),
+            ]
+          : []),
+        {
+          label: 'Cambiar el nombre',
+          icon: 'pencil',
+          onPress: async () => {
+            const nuevo = await overlay.prompt({
+              title: 'Nombre de la partida',
+              initial: game.title,
+              confirmLabel: 'Guardar',
+              maxLength: 40,
+            });
+            if (nuevo) {
+              rename(game.id, nuevo);
+              haptic.success();
+            }
+          },
+        },
         {
           label: game.finishedAt ? 'Reabrir partida' : 'Terminar partida',
           icon: 'flag',
@@ -58,18 +91,28 @@ export function GameMenu({ game }: { game: Game }) {
               message:
                 game.kind === 'truco'
                   ? 'Se borra el tanteador. No se puede deshacer.'
-                  : 'Se borran sus rondas y su tabla. No se puede deshacer.',
+                  : game.kind === 'torneo'
+                    ? 'Se borran sus partidos y su cuadro. No se puede deshacer.'
+                    : 'Se borran sus rondas y su tabla. No se puede deshacer.',
               confirmLabel: 'Eliminar',
               destructive: true,
             });
             if (!ok) return;
+            haptic.warning();
             remove(game.id);
-            router.back();
+            if (!opts.enLista) router.back();
           },
         },
       ],
     });
-  }
+  };
+}
+
+/** Botón "Opciones" de adentro de una partida. */
+export function GameMenu({ game }: { game: Game }) {
+  const { c } = useTheme();
+  const abrirMenu = useGameMenu();
+  const open = () => abrirMenu(game);
 
   return (
     <Pressable
@@ -191,10 +234,10 @@ export function StandingsList({
   return (
     <View>
       <Card color={leaderColor} big style={{ marginTop: space.lg, height: 150 }}>
-        <Clay name="trofeo" size={140} style={{ position: 'absolute', right: -2, top: -22 }} />
+        <Clay name="trofeo" size={112} style={{ position: 'absolute', right: space.md, top: space.lg }} />
         <View style={{ padding: space.xl, gap: 2 }}>
           <Label color={onPlayerColor}>{leaderKicker}</Label>
-          <Display color={onPlayerColor} style={{ fontSize: 38, lineHeight: 46, maxWidth: 200 }} numberOfLines={1}>
+          <Display color={onPlayerColor} style={{ fontSize: 38, lineHeight: 46, maxWidth: 200 }} numberOfLines={1} adjustsFontSizeToFit>
             {leader.player.name}
           </Display>
           <Row style={{ gap: 6 }}>
@@ -322,8 +365,8 @@ export function HistoryTable({
 export function BonusCard({ title, kicker, note, clay }: { title: string; kicker: string; note?: string; clay?: 'cinta' | 'destello' }) {
   return (
     <Card color={palette.mostaza} style={{ height: 100, marginTop: space.lg }}>
-      <Clay name={clay ?? 'cinta'} size={110} style={{ position: 'absolute', right: -2, top: -12 }} />
-      <View style={{ padding: space.xl, gap: 2 }}>
+      <Clay name={clay ?? 'cinta'} size={76} style={{ position: 'absolute', right: space.md, top: space.md }} />
+      <View style={{ padding: space.xl, paddingRight: 100, gap: 2 }}>
         <Label color={onPlayerColor}>{kicker}</Label>
         <Display color={onPlayerColor} style={{ fontSize: 27, lineHeight: 32 }}>
           {title}

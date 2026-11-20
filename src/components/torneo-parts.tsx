@@ -2,7 +2,7 @@
 // abajo para cargar resultados, el rodillo del sorteo y la tabla de posiciones.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -12,6 +12,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Fila } from '@/features/torneo/rules';
@@ -111,7 +112,7 @@ export function Hoja({
       >
         <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" style={{ flex: 1 }} onPress={onCerrar} />
       </Animated.View>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView behavior="padding">
         <View
           style={{
             backgroundColor: c.bg,

@@ -2,6 +2,9 @@ import ActivityKit
 import AppIntents
 import SwiftUI
 import WidgetKit
+#if canImport(AlarmKit)
+import AlarmKit
+#endif
 
 /// Los colores son los mismos de `src/theme/tokens.ts`. La Live Activity se
 /// pinta siempre oscura: en la pantalla bloqueada no hay modo claro.
@@ -17,6 +20,15 @@ enum Paleta {
 struct QuienGanaWidgets: WidgetBundle {
   var body: some Widget {
     TrucoLiveActivity()
+    // iOS 17–25. En el Apple Watch aparece sola en el Smart Stack (watchOS 11+),
+    // armada con la vista compacta de la isla.
+    RelojLiveActivity()
+    #if canImport(AlarmKit)
+    // iOS 26+: el reloj es una alarma de AlarmKit, con vista propia en el Watch.
+    if #available(iOS 26.0, *) {
+      RelojAlarmaLiveActivity()
+    }
+    #endif
   }
 }
 
@@ -202,4 +214,228 @@ private func corto(_ nombre: String) -> String {
 private func faltanDelPuntero(_ contexto: ActivityViewContext<TrucoAttributes>) -> Int {
   let puntero = max(contexto.state.nosotros, contexto.state.ellos)
   return faltan(puntero, contexto.attributes.target)
+}
+
+// MARK: - Reloj
+
+struct RelojLiveActivity: Widget {
+  var body: some WidgetConfiguration { relojConfiguracion() }
+}
+
+private func relojConfiguracion() -> some WidgetConfiguration {
+  ActivityConfiguration(for: RelojAttributes.self) { contexto in
+      RelojVista(
+        fin: contexto.state.fin,
+        restante: contexto.state.restante,
+        duracion: contexto.attributes.duracion,
+        pausado: contexto.state.pausado,
+        terminado: contexto.state.terminado
+      )
+      .activityBackgroundTint(Paleta.tinta)
+      .activitySystemActionForegroundColor(Paleta.marfil)
+    } dynamicIsland: { contexto in
+      relojIsla(
+        fin: contexto.state.fin,
+        restante: contexto.state.restante,
+        duracion: contexto.attributes.duracion,
+        pausado: contexto.state.pausado,
+        terminado: contexto.state.terminado
+      )
+    }
+}
+
+#if canImport(AlarmKit)
+/// La misma vista, pero alimentada por la alarma de AlarmKit (iOS 26+).
+@available(iOS 26.0, *)
+struct RelojAlarmaLiveActivity: Widget {
+  var body: some WidgetConfiguration {
+    ActivityConfiguration(for: AlarmAttributes<RelojMetadata>.self) { contexto in
+      let e = EstadoAlarma(contexto.state.mode)
+      RelojVista(fin: e.fin, restante: e.restante, duracion: e.duracion, pausado: e.pausado, terminado: e.terminado)
+        .activityBackgroundTint(Paleta.tinta)
+        .activitySystemActionForegroundColor(Paleta.marfil)
+    } dynamicIsland: { contexto in
+      let e = EstadoAlarma(contexto.state.mode)
+      return relojIsla(fin: e.fin, restante: e.restante, duracion: e.duracion, pausado: e.pausado, terminado: e.terminado)
+    }
+    .supplementalActivityFamilies([.small, .medium])
+  }
+}
+
+@available(iOS 26.0, *)
+private struct EstadoAlarma {
+  var fin = Date()
+  var restante: TimeInterval = 0
+  var duracion: TimeInterval = 1
+  var pausado = false
+  var terminado = false
+
+  init(_ modo: AlarmPresentationState.Mode) {
+    switch modo {
+    case .countdown(let c):
+      fin = c.fireDate
+      duracion = c.totalCountdownDuration
+      restante = max(0, c.fireDate.timeIntervalSinceNow)
+    case .paused(let p):
+      duracion = p.totalCountdownDuration
+      restante = max(0, p.totalCountdownDuration - p.previouslyElapsedDuration)
+      pausado = true
+    case .alert:
+      terminado = true
+    @unknown default:
+      terminado = true
+    }
+  }
+}
+#endif
+
+/// Lo que queda, como "1:05", para cuando está pausado.
+private func mmss(_ segundos: TimeInterval) -> String {
+  let s = Int(segundos.rounded(.up))
+  return String(format: "%d:%02d", s / 60, s % 60)
+}
+
+private func relojIsla(
+  fin: Date, restante: TimeInterval, duracion: TimeInterval, pausado: Bool, terminado: Bool
+) -> DynamicIsland {
+  DynamicIsland {
+    DynamicIslandExpandedRegion(.leading) {
+      Image(systemName: "hourglass")
+        .font(.system(size: 22, weight: .bold))
+        .foregroundStyle(Paleta.mostaza)
+        .padding(.leading, 6)
+    }
+    DynamicIslandExpandedRegion(.trailing) {
+      Cuenta(fin: fin, restante: restante, pausado: pausado, terminado: terminado, tamano: 28)
+        .padding(.trailing, 6)
+    }
+    DynamicIslandExpandedRegion(.bottom) {
+      Progreso(fin: fin, restante: restante, duracion: duracion, pausado: pausado, terminado: terminado)
+        .padding(.horizontal, 6)
+    }
+  } compactLeading: {
+    Image(systemName: terminado ? "bell.fill" : "hourglass")
+      .foregroundStyle(Paleta.mostaza)
+  } compactTrailing: {
+    Cuenta(fin: fin, restante: restante, pausado: pausado, terminado: terminado, tamano: 14)
+      .frame(maxWidth: 52)
+  } minimal: {
+    Image(systemName: terminado ? "bell.fill" : "hourglass")
+      .foregroundStyle(Paleta.mostaza)
+  }
+  .keylineTint(Paleta.mostaza)
+}
+
+private struct RelojVista: View {
+  let fin: Date
+  let restante: TimeInterval
+  let duracion: TimeInterval
+  let pausado: Bool
+  let terminado: Bool
+
+  var body: some View {
+    if #available(iOS 18.0, *) {
+      RelojVistaConFamilia(fin: fin, restante: restante, duracion: duracion, pausado: pausado, terminado: terminado)
+    } else {
+      RelojGrande(fin: fin, restante: restante, duracion: duracion, pausado: pausado, terminado: terminado)
+    }
+  }
+}
+
+/// En el Apple Watch (`.small`) va sólo el número grande y la barra.
+@available(iOS 18.0, *)
+private struct RelojVistaConFamilia: View {
+  @Environment(\.activityFamily) private var familia
+  let fin: Date
+  let restante: TimeInterval
+  let duracion: TimeInterval
+  let pausado: Bool
+  let terminado: Bool
+
+  var body: some View {
+    if familia == .small {
+      VStack(alignment: .leading, spacing: 4) {
+        Cuenta(fin: fin, restante: restante, pausado: pausado, terminado: terminado, tamano: 30)
+        Progreso(fin: fin, restante: restante, duracion: duracion, pausado: pausado, terminado: terminado)
+      }
+      .padding(8)
+      .foregroundStyle(Paleta.marfil)
+    } else {
+      RelojGrande(fin: fin, restante: restante, duracion: duracion, pausado: pausado, terminado: terminado)
+    }
+  }
+}
+
+private struct RelojGrande: View {
+  let fin: Date
+  let restante: TimeInterval
+  let duracion: TimeInterval
+  let pausado: Bool
+  let terminado: Bool
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack(spacing: 8) {
+        Image(systemName: terminado ? "bell.fill" : "hourglass")
+          .foregroundStyle(Paleta.mostaza)
+        Text(terminado ? "¡Tiempo!" : pausado ? "Reloj · en pausa" : "Reloj")
+          .font(.system(size: 13, weight: .semibold))
+        Spacer()
+        Cuenta(fin: fin, restante: restante, pausado: pausado, terminado: terminado, tamano: 36)
+      }
+      Progreso(fin: fin, restante: restante, duracion: duracion, pausado: pausado, terminado: terminado)
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 14)
+    .foregroundStyle(Paleta.marfil)
+  }
+}
+
+/// La cuenta regresiva. Corriendo la dibuja el sistema y avanza sola.
+private struct Cuenta: View {
+  let fin: Date
+  let restante: TimeInterval
+  let pausado: Bool
+  let terminado: Bool
+  let tamano: CGFloat
+
+  var body: some View {
+    Group {
+      if terminado {
+        Text("0:00")
+      } else if pausado || fin <= Date() {
+        Text(mmss(restante))
+      } else {
+        Text(timerInterval: Date()...fin, countsDown: true)
+      }
+    }
+    .font(.system(size: tamano, weight: .heavy).monospacedDigit())
+    .multilineTextAlignment(.trailing)
+    .foregroundStyle(terminado ? Paleta.tomate : Paleta.marfil)
+  }
+}
+
+private struct Progreso: View {
+  let fin: Date
+  let restante: TimeInterval
+  let duracion: TimeInterval
+  let pausado: Bool
+  let terminado: Bool
+
+  var body: some View {
+    Group {
+      if terminado || pausado || fin <= Date() {
+        ProgressView(value: terminado ? 0 : max(0, min(1, restante / max(duracion, 1))))
+      } else {
+        ProgressView(
+          timerInterval: fin.addingTimeInterval(-max(duracion, 1))...fin,
+          countsDown: true,
+          label: { EmptyView() },
+          currentValueLabel: { EmptyView() }
+        )
+      }
+    }
+    .progressViewStyle(.linear)
+    .tint(terminado ? Paleta.tomate : Paleta.mostaza)
+  }
 }

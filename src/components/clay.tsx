@@ -5,6 +5,9 @@ import type { ImageStyle } from 'expo-image';
 const sources = {
   corazon: require('@/assets/clay/corazon.png'),
   dado: require('@/assets/clay/dado.png'),
+  // El cubilete con dados: Generala. `dado` queda para la herramienta de dados.
+  generala: require('@/assets/clay/generala.png'),
+  regalo: require('@/assets/clay/regalo.png'),
   pulsador: require('@/assets/clay/pulsador.png'),
   relojArena: require('@/assets/clay/reloj-arena.png'),
   lapiz: require('@/assets/clay/lapiz.png'),

@@ -11,6 +11,8 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
+  # AlarmKit es de iOS 26: enlace débil para que la app siga abriendo en iOS 17–25.
+  s.weak_frameworks = 'AlarmKit'
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

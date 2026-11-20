@@ -51,9 +51,14 @@ export async function push() {
 }
 
 export async function pull() {
+  // Sólo las propias: los torneos compartidos también se pueden leer (RLS),
+  // pero no son de uno y no tienen que mezclarse con las partidas locales.
+  const userId = (await supabase.auth.getSession()).data.session?.user.id;
+  if (!userId) return;
   const { data, error } = await supabase
     .from('games')
     .select('data')
+    .eq('user_id', userId)
     .order('updated_at', { ascending: false })
     .limit(200);
   if (error || !data) return;

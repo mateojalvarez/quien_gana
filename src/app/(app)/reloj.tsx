@@ -1,10 +1,12 @@
 import { useKeepAwake } from 'expo-keep-awake';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Animated, Easing, Pressable, View } from 'react-native';
+import { Animated, AppState, Easing, Pressable, View } from 'react-native';
 
 import { Clay } from '@/components/clay';
 import { Bar, Button, Card, Display, Label, Num, Row, Screen, Stepper, Title } from '@/components/ui';
+import { agendarFin, cancelarFin, prepararAviso } from '@/features/reloj/aviso';
 import { haptic } from '@/lib/haptics';
+import { reloj as relojAfuera, terminarReloj, type ModoReloj } from '@/live-activity';
 import { fondo, sonido } from '@/lib/sonido';
 import { border, onPlayerColor, palette, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
@@ -32,6 +34,37 @@ export default function Reloj() {
   // tick del intervalo caiga justo en 0.
   const avisado = useRef(false);
   const ultimoTic = useRef(-1);
+  // Sube cada vez que la cuenta arranca de cero estando ya en marcha: el
+  // efecto del intervalo se vuelve a armar con el nuevo final.
+  const [vuelta, setVuelta] = useState(0);
+
+  // ── Afuera de la app: Live Activity / alarma del sistema / notificación ──
+  // Con la pantalla bloqueada la cuenta la dibuja el sistema (avanza sola) y
+  // el aviso final lo da AlarmKit (iOS 26+) o una notificación agendada.
+  const modoAfuera = useRef<ModoReloj>('');
+  const avisoPreparado = useRef(false);
+
+  async function correrAfuera(finMs: number, duracionMs: number, restanteMs: number) {
+    if (!avisoPreparado.current) {
+      avisoPreparado.current = true;
+      await prepararAviso();
+    }
+    const modo = await relojAfuera({ finMs, duracionMs, restanteMs, pausado: false });
+    modoAfuera.current = modo;
+    if (modo === 'alarma') await cancelarFin();
+    else await agendarFin(finMs);
+  }
+
+  function pausarAfuera(restanteMs: number, duracionMs: number) {
+    cancelarFin();
+    relojAfuera({ finMs: 0, duracionMs, restanteMs, pausado: true }).then((m) => (modoAfuera.current = m));
+  }
+
+  function limpiarAfuera() {
+    cancelarFin();
+    terminarReloj(false, true);
+    modoAfuera.current = '';
+  }
 
   // Mientras el reloj corre, la app mantiene abierta una sesión de audio
   // inaudible: es lo único que evita que iOS suspenda el temporizador cuando se
@@ -45,11 +78,18 @@ export default function Reloj() {
       avisado.current = true;
       setRemaining(0);
       setRunning(false);
-      // La alarma suena en bucle unos segundos y la vibración la acompaña toda,
-      // así el aviso se escucha y se siente aunque el teléfono esté en el
-      // bolsillo y en silencio.
-      sonido.alarma();
-      haptic.alarma();
+      const enPantalla = AppState.currentState === 'active';
+      // Con la app abierta avisa la pantalla y se corta la alarma del sistema;
+      // bloqueado, la alarma de AlarmKit (o la notificación) es la que suena.
+      terminarReloj(true, enPantalla);
+      if (enPantalla) cancelarFin();
+      if (enPantalla || modoAfuera.current !== 'alarma') {
+        // La alarma suena en bucle unos segundos y la vibración la acompaña
+        // toda, así el aviso se escucha y se siente aunque el teléfono esté en
+        // el bolsillo y en silencio.
+        sonido.alarma();
+        haptic.alarma();
+      }
     };
 
     const fin = setTimeout(avisar, Math.max(0, endAt.current - Date.now()));
@@ -74,7 +114,7 @@ export default function Reloj() {
       clearInterval(id);
       fondo.soltar();
     };
-  }, [running]);
+  }, [running, vuelta]);
 
   // Salir de la pantalla corta el aviso: nadie quiere una alarma sonando en
   // otro juego.
@@ -83,6 +123,7 @@ export default function Reloj() {
       sonido.callar();
       haptic.pararAlarma();
       fondo.soltar();
+      limpiarAfuera();
     },
     [],
   );
@@ -96,10 +137,25 @@ export default function Reloj() {
     endAt.current = Date.now() + base;
     setRemaining(base);
     setRunning(true);
+    correrAfuera(endAt.current, duration || base, base);
+  }
+
+  /** Vuelve a la duración completa y arranca en el acto, esté corriendo o no. */
+  function comenzarDeNuevo() {
+    if (duration === 0) return;
+    callar();
+    avisado.current = false;
+    ultimoTic.current = -1;
+    endAt.current = Date.now() + duration;
+    setRemaining(duration);
+    setRunning(true);
+    setVuelta((v) => v + 1);
+    correrAfuera(endAt.current, duration, duration);
   }
 
   function pick(sec: number) {
     callar();
+    limpiarAfuera();
     setRunning(false);
     avisado.current = false;
     ultimoTic.current = -1;
@@ -131,20 +187,31 @@ export default function Reloj() {
       title="Reloj"
       meta="Reloj de arena para turnos"
       footer={
-        <Row style={{ gap: space.sm }}>
-          <Button label="Reiniciar" variant="outline" style={{ flex: 1 }} onPress={() => pick(duration / 1000)} />
+        <View style={{ gap: space.sm }}>
+          <Row style={{ gap: space.sm }}>
+            <Button label="Reiniciar" variant="outline" size="sm" style={{ flex: 1 }} onPress={() => pick(duration / 1000)} />
+            <Button
+              label="Comenzar nuevamente"
+              icon="undo"
+              variant="outline"
+              size="sm"
+              style={{ flex: 1.6 }}
+              disabled={duration === 0}
+              onPress={comenzarDeNuevo}
+            />
+          </Row>
           <Button
             label={running ? 'Pausar' : done ? 'Otra vez' : 'Empezar'}
             icon={running ? 'pause' : 'play'}
-            style={{ flex: 2 }}
             disabled={!running && duration === 0 && remaining === 0}
             onPress={() => {
               if (!running) return start();
               callar();
               setRunning(false);
+              pausarAfuera(Math.max(0, endAt.current - Date.now()), duration);
             }}
           />
-        </Row>
+        </View>
       }
     >
       <Titilante activo={avisando}>

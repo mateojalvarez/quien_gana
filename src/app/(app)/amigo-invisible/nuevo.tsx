@@ -11,7 +11,8 @@ import { displayName } from '@/lib/auth';
 import { haptic } from '@/lib/haptics';
 import { uid } from '@/lib/id';
 import { useAuth } from '@/providers/auth-provider';
-import { groupById, playerNames, useGrupos } from '@/store/grupos';
+import { contactosDelGrupo } from '@/features/grupos/api';
+import { groupById, participantesDeGrupo, useGrupos } from '@/store/grupos';
 import { border, fonts, palette, radius, space, touch } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
@@ -75,17 +76,40 @@ export default function NuevoSorteo() {
     setAviso(null);
   }
 
-  function traerDelGrupo() {
+  const [trayendo, setTrayendo] = useState(false);
+
+  /**
+   * Los integrantes con cuenta vienen con su correo (la RPC sólo se lo da a
+   * quien es del grupo). Vos no: tu fila la maneja el interruptor de arriba.
+   * Los integrantes locales no tienen mail y quedan para completar a mano.
+   */
+  async function traerDelGrupo() {
     if (!grupo) return;
     haptic.tap();
-    const tengo = new Set(gente.map((p) => p.name.toLowerCase()));
-    // Vienen con el correo vacío a propósito: el grupo guarda nombres, no mails.
-    setGente((g) => [
-      ...g,
-      ...playerNames(grupo, locals[grupo.id] ?? [])
-        .filter((n) => !tengo.has(n.toLowerCase()))
-        .map((name) => ({ id: uid(), name, email: '' })),
-    ]);
+    setTrayendo(true);
+    let contactos: Awaited<ReturnType<typeof contactosDelGrupo>> = {};
+    try {
+      contactos = await contactosDelGrupo(grupo.id);
+    } catch {
+      setAviso('No se pudieron traer los correos del grupo: completalos a mano.');
+    } finally {
+      setTrayendo(false);
+    }
+    const nuevos = participantesDeGrupo(grupo, locals[grupo.id] ?? [], user?.id, uid)
+      .filter((p) => !(p.ref?.tipo === 'cuenta' && p.ref.userId === user?.id))
+      .map((p) => {
+        const contacto = p.ref?.tipo === 'cuenta' ? contactos[p.ref.userId] : undefined;
+        return { id: uid(), name: p.name, email: contacto?.email ?? '' };
+      });
+    setGente((g) => {
+      const mails = new Set(g.map((p) => p.email.trim().toLowerCase()).filter(Boolean));
+      const nombres = new Set(g.map((p) => p.name.trim().toLowerCase()));
+      if (user?.email) mails.add(user.email.toLowerCase());
+      const sumar = nuevos.filter((p) =>
+        p.email ? !mails.has(p.email.toLowerCase()) : !nombres.has(p.name.trim().toLowerCase()),
+      );
+      return [...g, ...sumar].slice(0, LIMITES.max);
+    });
   }
 
   const listo = validar(gente);
@@ -295,12 +319,13 @@ export default function NuevoSorteo() {
         </Pressable>
       </Row>
 
-      {grupo && playerNames(grupo, locals[grupo.id] ?? []).length > 0 ? (
+      {grupo && grupo.members.length + (locals[grupo.id]?.length ?? 0) > 1 ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Traer los integrantes de ${grupo.name}`}
           onPress={traerDelGrupo}
-          style={({ pressed }) => ({ marginTop: space.md, alignSelf: 'flex-start', opacity: pressed ? 0.6 : 1 })}
+          disabled={trayendo}
+          style={({ pressed }) => ({ marginTop: space.md, alignSelf: 'flex-start', opacity: pressed || trayendo ? 0.6 : 1 })}
         >
           <Row style={{ gap: 6 }}>
             <Icon name="users" size={16} color={c.ink} />

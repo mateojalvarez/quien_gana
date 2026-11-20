@@ -30,8 +30,11 @@ export default function AppLayout() {
       <Stack.Screen name="torneo/nuevo" />
       <Stack.Screen name="torneo/[id]/index" />
       <Stack.Screen name="torneo/[id]/sorteo" options={{ gestureEnabled: false }} />
+      <Stack.Screen name="torneo/[id]/compartir" />
+      <Stack.Screen name="t/[code]" />
       <Stack.Screen name="pulsador/index" />
       <Stack.Screen name="pulsador/sala" options={{ gestureEnabled: false }} />
+      <Stack.Screen name="pulsador/escanear" options={{ presentation: 'fullScreenModal' }} />
     </Stack>
   );
 }

@@ -124,4 +124,10 @@ export type DatosTorneo = {
   desempates?: Record<string, string[]>;
   /** Id del participante campeón. */
   campeon?: string | null;
+  /**
+   * Semilla del sorteo de cruces de grupos → playoff. Se guarda para que el
+   * cuadro sea el mismo en todos los dispositivos y se pueda re-sortear
+   * (cambiándola) mientras no se haya jugado nada del playoff.
+   */
+  semillaCruces?: number | null;
 };

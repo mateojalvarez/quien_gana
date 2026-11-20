@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Avatar, Body, Button, Card, Display, Label, Row, Screen, Segmented, Spinner, Title } from '@/components/ui';
+import QRCode from 'react-native-qrcode-svg';
+
+import { Avatar, Body, Button, Card, Display, Label, Row, Screen, Segmented, Spinner, Title, Toggle } from '@/components/ui';
 import { marginMs } from '@/features/pulsador/logic';
 import type { Mode } from '@/features/pulsador/types';
 import { quality } from '@/lib/clock-sync';
 import { haptic } from '@/lib/haptics';
+import { publicarSala } from '@/lib/nearby';
 import { sonido } from '@/lib/sonido';
 import { useRoom, type Room } from '@/lib/room';
 import { onPlayerColor, palette, playerColor, radius, space } from '@/theme/tokens';
@@ -55,10 +58,37 @@ function Aviso({ title, body, spinner }: { title: string; body: string; spinner?
 
 /* ───────────── Lobby ───────────── */
 
+/** El QR de la sala abre la app (o la web, que manda a la tienda) directo en esta sala. */
+export const salaUrl = (code: string) => `https://quien-gana.app/p/${code}`;
+
 function Lobby({ room, asHost, code }: { room: Room; asHost: boolean; code: string }) {
   const { c, scheme } = useTheme();
   const [mode, setMode] = useState<Mode>('libre');
+  const [visible, setVisible] = useState(false);
+  const [avisoRed, setAvisoRed] = useState<string | null>(null);
   const q = quality(room.sync);
+
+  // "Visible en esta red": la sala se anuncia por Bonjour mientras el
+  // anfitrión lo tenga prendido y esté en el lobby.
+  const hostName = room.me?.name ?? 'Anfitrión';
+  useEffect(() => {
+    if (!asHost || !visible) return;
+    let soltar: (() => void) | null = null;
+    let vivo = true;
+    publicarSala(code, hostName)
+      .then((f) => {
+        if (vivo) soltar = f;
+        else f();
+      })
+      .catch(() => {
+        setAvisoRed('No se pudo anunciar la sala. Revisá el wifi y el permiso de red local.');
+        setVisible(false);
+      });
+    return () => {
+      vivo = false;
+      soltar?.();
+    };
+  }, [asHost, visible, code, hostName]);
 
   const texto: Record<typeof q, string> = {
     midiendo: 'Midiendo el retraso contra el anfitrión…',
@@ -94,6 +124,35 @@ function Lobby({ room, asHost, code }: { room: Room; asHost: boolean; code: stri
           ? 'Pasá el código a los demás. Entran desde Pulsador → Varios equipos.'
           : 'Ya estás adentro. El anfitrión abre las rondas.'}
       </Body>
+
+      {asHost ? (
+        <Card style={{ marginTop: space.xl, padding: space.lg, gap: space.lg }}>
+          <Row style={{ gap: space.lg, alignItems: 'center' }}>
+            <View style={{ padding: 8, borderRadius: radius.sm, backgroundColor: palette.marfil }}>
+              <QRCode value={salaUrl(code)} size={96} color={palette.tinta} backgroundColor={palette.marfil} />
+            </View>
+            <Body style={{ flex: 1, fontSize: 14, lineHeight: 19 }}>
+              Que lo escaneen con la cámara o desde Pulsador → Escanear QR y entran directo.
+            </Body>
+          </Row>
+          <Row style={{ gap: space.md }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Title style={{ fontSize: 16 }}>Visible en esta red</Title>
+              <Label>Los que estén en el mismo wifi con Pulsador abierto la ven aparecer.</Label>
+            </View>
+            <Toggle
+              label="Visible en esta red"
+              value={visible}
+              onChange={(v) => {
+                haptic.tap();
+                setAvisoRed(null);
+                setVisible(v);
+              }}
+            />
+          </Row>
+          {avisoRed ? <Label color={c.bad}>{avisoRed}</Label> : null}
+        </Card>
+      ) : null}
 
       <Label style={{ marginTop: space.xxl, marginBottom: space.md }}>En la sala</Label>
       <View style={{ gap: space.sm }}>

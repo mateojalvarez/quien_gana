@@ -1,12 +1,16 @@
 import { useKeepAwake } from 'expo-keep-awake';
-import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Clay } from '@/components/clay';
+import { Icon } from '@/components/icons';
 import { Body, Button, Card, Display, Field, Label, Row, Screen, Segmented } from '@/components/ui';
+import { useApodo } from '@/features/perfil/apodo';
+import { displayName } from '@/lib/auth';
 import { haptic } from '@/lib/haptics';
+import { useSalasCerca } from '@/lib/nearby';
 import { sonido } from '@/lib/sonido';
 import { makeCode, normalizeCode } from '@/lib/room';
 import { useAuth } from '@/providers/auth-provider';
@@ -21,8 +25,11 @@ type Where = 'mesa' | 'varios';
 const randomDelay = () => 1500 + Math.random() * 3000;
 
 export default function Pulsador() {
+  // Llega con `code` desde el QR o el enlace de una sala: directo a "Varios equipos".
+  const params = useLocalSearchParams<{ code?: string }>();
+  const codigoInicial = normalizeCode(params.code ?? '');
   const [playing, setPlaying] = useState(false);
-  const [where, setWhere] = useState<Where>('mesa');
+  const [where, setWhere] = useState<Where>(codigoInicial ? 'varios' : 'mesa');
   const [players, setPlayers] = useState(2);
   const [mode, setMode] = useState<Mode>('libre');
 
@@ -56,7 +63,7 @@ export default function Pulsador() {
       {where === 'mesa' ? (
         <Mesa players={players} setPlayers={setPlayers} mode={mode} setMode={setMode} />
       ) : (
-        <Varios />
+        <Varios key={codigoInicial} codigoInicial={codigoInicial} />
       )}
     </Screen>
   );
@@ -109,13 +116,27 @@ function Mesa({
 
 /* ───────────── Un teléfono por jugador ───────────── */
 
-function Varios() {
+function Varios({ codigoInicial }: { codigoInicial: string }) {
   const { c } = useTheme();
   const { session } = useAuth();
-  const [name, setName] = useState(
-    () => ((session?.user.user_metadata?.name as string | undefined) ?? '').trim().split(' ')[0],
+  const nickname = useApodo((s) => s.nickname);
+  const [name, setName] = useState(() => {
+    const u = session?.user;
+    if (!u || u.is_anonymous) return '';
+    return displayName(u, nickname).trim().split(' ')[0].slice(0, 14);
+  });
+  // Un código nuevo por enlace/QR remonta este componente (ver `key` arriba).
+  const [code, setCode] = useState(codigoInicial);
+
+  // Sólo se busca en la red mientras esta pantalla está a la vista.
+  const [enFoco, setEnFoco] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setEnFoco(true);
+      return () => setEnFoco(false);
+    }, []),
   );
-  const [code, setCode] = useState('');
+  const cerca = useSalasCerca(enFoco);
 
   const go = (sala: string, host: boolean) => {
     const quien = name.trim() || 'Jugador';
@@ -142,7 +163,57 @@ function Varios() {
         onPress={() => go(makeCode(), true)}
       />
 
-      <Row style={{ marginTop: space.xxl, gap: space.md, alignItems: 'flex-end' }}>
+      {/* Salas en el mismo wifi, como una Jam */}
+      {cerca.salas.length > 0 || cerca.error ? (
+        <View style={{ marginTop: space.xxl, gap: space.sm }}>
+          <Row style={{ gap: 6 }}>
+            <Icon name="wifi" size={16} color={c.ink} />
+            <Label color={c.ink}>Salas cerca</Label>
+          </Row>
+          {cerca.error ? <Label color={c.bad}>{cerca.error}</Label> : null}
+          {cerca.salas.map((s) => (
+            <Pressable
+              key={s.code}
+              accessibilityRole="button"
+              accessibilityLabel={`Unirme a la sala de ${s.host}`}
+              onPress={() => go(s.code, false)}
+              style={({ pressed }) => ({
+                minHeight: 60,
+                borderRadius: radius.field,
+                backgroundColor: palette.salvia,
+                paddingHorizontal: space.lg,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: space.md,
+                opacity: pressed ? 0.75 : 1,
+              })}
+            >
+              <View style={{ flex: 1 }}>
+                <Label color={onPlayerColor}>Sala {s.code}</Label>
+                <Body color={onPlayerColor} style={{ fontSize: 16 }} numberOfLines={1}>
+                  {s.host}
+                </Body>
+              </View>
+              <Label color={onPlayerColor} style={{ fontSize: 15 }}>
+                Unirme
+              </Label>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      <Button
+        label="Escanear QR"
+        icon="qr"
+        variant="outline"
+        style={{ marginTop: space.xxl }}
+        onPress={() => {
+          haptic.tap();
+          router.push({ pathname: '/pulsador/escanear', params: { name: name.trim() || 'Jugador' } });
+        }}
+      />
+
+      <Row style={{ marginTop: space.lg, gap: space.md, alignItems: 'flex-end' }}>
         <Field
           label="Entrar con código"
           value={code}

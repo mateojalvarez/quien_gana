@@ -20,6 +20,17 @@ export type Rng = () => number;
 
 export const LIMITES = { minParticipantes: 2, maxParticipantes: 64, maxBombos: 6, maxGrupos: 16 } as const;
 
+/** Azar reproducible a partir de una semilla (LCG): mismo número, mismo sorteo. */
+export function rngDeSemilla(semilla: number): Rng {
+  let s = semilla >>> 0;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+export const nuevaSemilla = () => Math.floor(Math.random() * 4294967296);
+
 export function mezclar<T>(xs: readonly T[], rng: Rng = Math.random): T[] {
   const out = xs.slice();
   for (let i = out.length - 1; i > 0; i--) {
@@ -252,7 +263,6 @@ export function crearCuadro(sembrados: string[], grupoDe?: Map<string, number>):
   const m = sembrados.length;
   if (m < 2) return [];
   const p = potencia(m);
-  const total = Math.log2(p);
   const orden = ordenSiembra(p);
   const llaves: Llave[] = [];
 
@@ -280,8 +290,14 @@ export function crearCuadro(sembrados: string[], grupoDe?: Map<string, number>):
       if (otra) [l.b, otra.b] = [otra.b, l.b];
     }
   }
-  llaves.push(...primera);
+  llaves.push(...primera, ...rondasSiguientes(p));
+  return llaves;
+}
 
+/** Las llaves vacías de la segunda ronda en adelante. */
+function rondasSiguientes(p: number): Llave[] {
+  const llaves: Llave[] = [];
+  const total = Math.log2(p);
   for (let ronda = 1; ronda < total; ronda++) {
     const cantidad = p / 2 ** (ronda + 1);
     for (let pos = 0; pos < cantidad; pos++) {
@@ -289,6 +305,104 @@ export function crearCuadro(sembrados: string[], grupoDe?: Map<string, number>):
     }
   }
   return llaves;
+}
+
+/**
+ * Sorteo de cruces al pasar de grupos a playoff.
+ *
+ * `puestos[0]` son los 1° de cada grupo, `puestos[1]` los 2°, etc.
+ *  · Un 1° nunca se cruza con otro 1° (salvo que haya más 1° que llaves).
+ *  · Los 1° se reparten por el cuadro como cabezas de serie (siembra
+ *    estándar): quedan en mitades y cuartos distintos, así no se cruzan
+ *    entre ellos hasta lo más tarde posible.
+ *  · Si sobran lugares, los byes son para los 1°.
+ *  · En la primera ronda nadie se cruza con alguien de su propio grupo,
+ *    siempre que exista una forma de lograrlo.
+ * Dentro de esas reglas, todo es al azar.
+ */
+export function sortearCruces(puestos: string[][], grupoDe: Map<string, number>, rng: Rng = Math.random): Llave[] {
+  const m = puestos.reduce((n, x) => n + x.length, 0);
+  if (m < 2) return [];
+  const p = potencia(m);
+  const slots = p / 2;
+  const orden = ordenSiembra(p);
+  const byes = p - m;
+
+  // Llave que encabeza cada cabeza de serie (1..slots), según la siembra estándar.
+  const llaveDeSiembra: number[] = [];
+  for (let pos = 0; pos < slots; pos++) llaveDeSiembra[Math.min(orden[2 * pos], orden[2 * pos + 1])] = pos;
+
+  const primeros = mezclar(puestos[0] ?? [], rng);
+  const cabezas = primeros.slice(0, slots);
+  // Más 1° que llaves: los que sobran juegan como uno más (inevitable).
+  const resto = [...primeros.slice(slots), ...puestos.slice(1).flatMap((x) => mezclar(x, rng))];
+
+  const mismoGrupo = (a: string, b: string) => grupoDe.get(a) === grupoDe.get(b);
+
+  const intentar = (respetarGrupos: boolean): Llave[] | null => {
+    for (let intento = 0; intento < 60; intento++) {
+      // Cabezas de lado A en las llaves de las siembras 1..k; los byes van a las mejores siembras.
+      const a: (string | null)[] = Array(slots).fill(null);
+      cabezas.forEach((id, i) => (a[llaveDeSiembra[i + 1]] = id));
+      // El resto de los lados A: los de mejor puesto primero (resto ya viene por puesto),
+      // con un poco de azar para que el cuadro no sea siempre igual.
+      const pool = intento === 0 ? resto.slice() : mezclarPorPuesto(resto, puestos, rng);
+      for (let siembra = cabezas.length + 1; siembra <= slots; siembra++) a[llaveDeSiembra[siembra]] = pool.shift() ?? null;
+
+      const conBye = new Set<number>();
+      for (let siembra = 1; siembra <= byes; siembra++) conBye.add(llaveDeSiembra[siembra]);
+
+      const huecos = [...Array(slots).keys()].filter((pos) => !conBye.has(pos));
+      const rivales = mezclar(pool, rng);
+      const b: (string | null)[] = Array(slots).fill(null);
+
+      // Backtracking: cada hueco toma un rival que no sea 1° contra 1° ni de su grupo.
+      const usados = new Set<number>();
+      const cabezaSet = new Set(cabezas);
+      const ok = (pos: number, rival: string) => {
+        const local = a[pos];
+        if (!local) return true;
+        if (cabezaSet.has(local) && cabezaSet.has(rival)) return false;
+        return !respetarGrupos || !mismoGrupo(local, rival);
+      };
+      const llenar = (i: number): boolean => {
+        if (i === huecos.length) return true;
+        for (let j = 0; j < rivales.length; j++) {
+          if (usados.has(j) || !ok(huecos[i], rivales[j])) continue;
+          usados.add(j);
+          b[huecos[i]] = rivales[j];
+          if (llenar(i + 1)) return true;
+          usados.delete(j);
+        }
+        return false;
+      };
+      if (!llenar(0)) continue;
+
+      return a.map<Llave>((id, pos) => ({
+        id: `P-0-${pos}`,
+        ronda: 0,
+        pos,
+        a: id,
+        b: b[pos],
+        bye: b[pos] === null,
+      }));
+    }
+    return null;
+  };
+
+  const primera = intentar(true) ?? intentar(false) ?? [];
+  return [...primera, ...rondasSiguientes(p)];
+}
+
+/** Mezcla manteniendo el orden por puesto: todos los 2° (al azar) antes que los 3°, etc. */
+function mezclarPorPuesto(ids: string[], puestos: string[][], rng: Rng): string[] {
+  const puestoDe = new Map(puestos.flatMap((xs, i) => xs.map((id) => [id, i] as const)));
+  const grupos = new Map<number, string[]>();
+  for (const id of ids) {
+    const k = puestoDe.get(id) ?? 99;
+    grupos.set(k, [...(grupos.get(k) ?? []), id]);
+  }
+  return [...grupos.keys()].sort((x, y) => x - y).flatMap((k) => mezclar(grupos.get(k)!, rng));
 }
 
 function partidosDeLlave(l: Llave, piernas: 1 | 2): Partido[] {
@@ -565,21 +679,41 @@ export function empatesPendientes(datos: DatosTorneo): Empate[] {
   return [];
 }
 
-/** Clasificados ordenados como sembrados: todos los 1°, después todos los 2°, … */
-function clasificados(datos: DatosTorneo): { sembrados: string[]; grupoDe: Map<string, number> } {
+/** Clasificados por puesto: `puestos[0]` los 1° de cada grupo, `puestos[1]` los 2°, … */
+function clasificados(datos: DatosTorneo): { puestos: string[][]; grupoDe: Map<string, number> } {
   const q = datos.formato.grupos?.clasificanPorGrupo ?? 2;
   const tablas = tablasDeGrupos(datos);
-  const sembrados: string[] = [];
+  const puestos: string[][] = [];
   const grupoDe = new Map<string, number>();
   for (let puesto = 0; puesto < q; puesto++) {
+    puestos[puesto] = [];
     tablas.forEach((t, g) => {
       const f = t.filas[puesto];
       if (!f) return;
-      sembrados.push(f.id);
+      puestos[puesto].push(f.id);
       grupoDe.set(f.id, g);
     });
   }
-  return { sembrados, grupoDe };
+  return { puestos, grupoDe };
+}
+
+/** Los cruces de grupos → playoff se pueden volver a sortear hasta que se juegue algo del cuadro. */
+export function puedeResortearCruces(datos: DatosTorneo): boolean {
+  return (
+    datos.formato.tipo === 'grupos' &&
+    !!datos.llaves?.length &&
+    !datos.partidos.some((p) => p.etapa === 'playoff' && jugado(p))
+  );
+}
+
+export function resortearCruces<T extends DatosTorneo>(datos: T, semilla: number = nuevaSemilla()): T {
+  if (!puedeResortearCruces(datos)) return datos;
+  return avanzar({
+    ...datos,
+    llaves: [],
+    partidos: datos.partidos.filter((p) => p.etapa !== 'playoff'),
+    semillaCruces: semilla,
+  });
 }
 
 /** Rellena las llaves con los ganadores de la ronda anterior y crea sus partidos. */
@@ -654,8 +788,11 @@ export function avanzar<T extends DatosTorneo>(datos: T): T {
     etapaCompleta(d.partidos, 'grupo') &&
     empatesPendientes(d).length === 0
   ) {
-    const { sembrados, grupoDe } = clasificados(d);
-    d = { ...d, llaves: crearCuadro(sembrados, grupoDe) };
+    // Sorteo de cruces. La semilla queda guardada: el cuadro es el mismo en
+    // todos los dispositivos y no cambia al recalcular.
+    const semilla = d.semillaCruces ?? nuevaSemilla();
+    const { puestos, grupoDe } = clasificados(d);
+    d = { ...d, semillaCruces: semilla, llaves: sortearCruces(puestos, grupoDe, rngDeSemilla(semilla)) };
   }
 
   // 3) Cuadro.
@@ -671,7 +808,7 @@ export function avanzar<T extends DatosTorneo>(datos: T): T {
 
 /** Arma el fixture una vez hechos los sorteos. */
 export function iniciar<T extends DatosTorneo>(datos: T, rng: Rng = Math.random): T {
-  const d: T = { ...datos, partidos: [], llaves: [], desempates: {}, campeon: null, fase: 'en-juego' };
+  const d: T = { ...datos, partidos: [], llaves: [], desempates: {}, campeon: null, semillaCruces: null, fase: 'en-juego' };
   const { formato } = d;
   if (formato.tipo === 'liga') {
     d.partidos = partidosRoundRobin(mezclar(d.participantes.map((p) => p.id), rng), formato.idaVuelta, 'liga');

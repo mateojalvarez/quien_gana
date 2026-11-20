@@ -40,7 +40,7 @@ export default function AmigoInvisible() {
       meta="Sorteo por correo"
       decor={
         <View style={{ position: 'absolute', right: -4, top: 8 }} pointerEvents="none">
-          <Clay name="cinta" size={112} />
+          <Clay name="regalo" size={104} />
         </View>
       }
       footer={
@@ -53,7 +53,7 @@ export default function AmigoInvisible() {
     >
       {invitado ? (
         <View style={{ alignItems: 'center', gap: space.md, marginTop: space.huge }}>
-          <Clay name="cinta" size={96} />
+          <Clay name="regalo" size={96} />
           <Body color={c.muted} style={{ textAlign: 'center' }}>
             Para mandarles correos a los participantes hace falta una cuenta: como invitado no se puede.
             Vinculá Google o Apple desde tu perfil y volvé.

@@ -63,7 +63,7 @@ export default function Juegos() {
           <Label>
             {jugables.length} herramientas · {favs} {favs === 1 ? 'favorita' : 'favoritas'}
           </Label>
-          <Display>Juegos</Display>
+          <Display>Quién gana</Display>
         </View>
 
         {/* Buscador propio: píldora con borde, nada del sistema */}

@@ -18,9 +18,15 @@ type Perfil = { name: string; avatarUrl: string | null };
 /** Nombre y foto viven en profiles; RLS sólo deja ver los de mi propio grupo. */
 async function profilesOf(userIds: string[]): Promise<Record<string, Perfil>> {
   if (userIds.length === 0) return {};
-  const { data } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', userIds);
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, nickname, display_name, avatar_url')
+    .in('id', userIds);
+  if (error) throw error;
   const out: Record<string, Perfil> = {};
-  for (const p of data ?? []) out[p.id] = { name: p.display_name || 'Sin nombre', avatarUrl: p.avatar_url ?? null };
+  // El apodo manda: es el nombre que cada uno eligió para sus grupos.
+  for (const p of data ?? [])
+    out[p.id] = { name: p.nickname?.trim() || p.display_name || 'Jugador', avatarUrl: p.avatar_url ?? null };
   return out;
 }
 
@@ -42,7 +48,7 @@ export async function listGroups(): Promise<Group[]> {
     members: g.group_members
       .map<RemoteMember>((m) => ({
         userId: m.user_id,
-        name: perfiles[m.user_id]?.name ?? 'Sin nombre',
+        name: perfiles[m.user_id]?.name ?? 'Jugador',
         avatarUrl: perfiles[m.user_id]?.avatarUrl ?? null,
         role: m.role,
         joinedAt: m.joined_at,
@@ -126,4 +132,14 @@ export async function setActiveGroupRemote(userId: string, groupId: string | nul
 export async function getActiveGroupRemote(userId: string): Promise<string | null> {
   const { data } = await supabase.from('profiles').select('active_group_id').eq('id', userId).single();
   return (data?.active_group_id as string | null) ?? null;
+}
+
+/** Correo de cada integrante con cuenta. Sólo responde a quien es del grupo. */
+export async function contactosDelGrupo(groupId: string): Promise<Record<string, { name: string | null; email: string | null }>> {
+  const { data, error } = await supabase.rpc('group_member_contacts', { gid: groupId });
+  if (error) throw error;
+  const out: Record<string, { name: string | null; email: string | null }> = {};
+  for (const r of (data ?? []) as { user_id: string; name: string | null; email: string | null }[])
+    out[r.user_id] = { name: r.name, email: r.email };
+  return out;
 }

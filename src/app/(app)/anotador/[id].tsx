@@ -52,6 +52,7 @@ export default function AnotadorGame() {
       title={game.title}
       meta={`Anotador · ${game.rounds.length} ${game.rounds.length === 1 ? 'ronda' : 'rondas'}${game.target ? ` · a ${game.target}` : ''} · ${game.lowestWins ? 'menos gana' : 'más gana'}`}
       right={<GameMenu game={game} />}
+      keyboardToolbar
       footer={
         game.finishedAt ? null : (
           <Button label={`Anotar ronda ${roundNo}`} trailingIcon="arrowRight" disabled={!hasInput} onPress={commit} />

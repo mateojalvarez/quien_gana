@@ -122,7 +122,7 @@ export default function Unirse() {
       ) : (
         <>
           <Card color={palette.mostaza} style={{ marginTop: space.lg, paddingRight: 90 }}>
-            <Clay name="composicion" size={96} style={{ position: 'absolute', right: -10, top: -22 }} />
+            <Clay name="composicion" size={72} style={{ position: 'absolute', right: space.md, top: space.md }} />
             <View style={{ padding: space.xl, gap: 2 }}>
               <Label color={onPlayerColor}>
                 {estado.paso === 'lista' && estado.preview.inviter

@@ -32,7 +32,12 @@ export type IconName =
   | 'barajar'
   | 'camera'
   | 'sobre'
-  | 'ruleta';
+  | 'ruleta'
+  | 'pencil'
+  | 'qr'
+  | 'wifi'
+  | 'share'
+  | 'eye';
 
 type Props = {
   name: IconName;
@@ -152,6 +157,28 @@ export function Icon({ name, size = 20, color = '#151110', strokeWidth = 2, fill
         <>
           <Circle cx={12} cy={13} r={8} {...stroke} />
           <Path d="M12 5v16M4 13h16M6.3 7.3l11.4 11.4M17.7 7.3L6.3 18.7" {...stroke} />
+        </>
+      )}
+      {name === 'pencil' && <Path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 013 3L8 18.5 4 20zM13.5 7l3 3" {...stroke} />}
+      {name === 'qr' && (
+        <>
+          <Rect x={3.5} y={3.5} width={6.5} height={6.5} rx={1.2} {...stroke} />
+          <Rect x={14} y={3.5} width={6.5} height={6.5} rx={1.2} {...stroke} />
+          <Rect x={3.5} y={14} width={6.5} height={6.5} rx={1.2} {...stroke} />
+          <Path d="M14 14h2.5v2.5M20.5 14v0M14 20.5h2.5M18.5 18.5h2v2" {...stroke} />
+        </>
+      )}
+      {name === 'wifi' && (
+        <>
+          <Path d="M2.5 9a14 14 0 0119 0M5.5 12.3a9.5 9.5 0 0113 0M8.6 15.5a5 5 0 016.8 0" {...stroke} />
+          <Circle cx={12} cy={19} r={1.2} fill={color} />
+        </>
+      )}
+      {name === 'share' && <Path d="M12 3v12M7.5 7.5L12 3l4.5 4.5M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" {...stroke} />}
+      {name === 'eye' && (
+        <>
+          <Path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" {...stroke} />
+          <Circle cx={12} cy={12} r={3} {...stroke} />
         </>
       )}
     </Svg>

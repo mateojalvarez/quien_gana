@@ -1,6 +1,9 @@
 import ActivityKit
 import AppIntents
 import Foundation
+#if canImport(AlarmKit)
+import AlarmKit
+#endif
 
 /**
  Lo que comparten el widget y la app.
@@ -126,6 +129,9 @@ public enum Snapshot {
 public struct SumarPunto: LiveActivityIntent {
   public static var title: LocalizedStringResource = "Sumar un punto"
   public static var authenticationPolicy: IntentAuthenticationPolicy { .alwaysAllowed }
+  /// Nunca abre la app ni aparece en Atajos/Spotlight: es sólo el botón.
+  public static var openAppWhenRun: Bool { false }
+  public static var isDiscoverable: Bool { false }
 
   @Parameter(title: "Equipo")
   public var equipo: Int
@@ -147,6 +153,8 @@ public struct SumarPunto: LiveActivityIntent {
 public struct Deshacer: LiveActivityIntent {
   public static var title: LocalizedStringResource = "Deshacer el último toque"
   public static var authenticationPolicy: IntentAuthenticationPolicy { .alwaysAllowed }
+  public static var openAppWhenRun: Bool { false }
+  public static var isDiscoverable: Bool { false }
 
   public init() {}
 
@@ -203,3 +211,45 @@ public enum Actividades {
     )
   }
 }
+
+// MARK: - Reloj (temporizador)
+
+/**
+ El temporizador en la pantalla bloqueada. La cuenta la dibuja el sistema
+ (`Text(timerInterval:)`), así que avanza sola aunque la app esté dormida: la
+ app sólo avisa cuándo arranca, se pausa o se reinicia.
+ */
+public struct RelojAttributes: ActivityAttributes {
+  public struct ContentState: Codable, Hashable {
+    /// Cuándo llega a cero (si corre).
+    public var fin: Date
+    /// Lo que quedaba al pausarlo, en segundos.
+    public var restante: TimeInterval
+    public var pausado: Bool
+    public var terminado: Bool
+
+    public init(fin: Date, restante: TimeInterval, pausado: Bool, terminado: Bool) {
+      self.fin = fin
+      self.restante = restante
+      self.pausado = pausado
+      self.terminado = terminado
+    }
+  }
+
+  /// La duración elegida, para la barra de progreso.
+  public var duracion: TimeInterval
+
+  public init(duracion: TimeInterval) {
+    self.duracion = duracion
+  }
+}
+
+#if canImport(AlarmKit)
+/// iOS 26+: el reloj se agenda como una alarma de verdad (AlarmKit). Suena y
+/// vibra fuerte aunque el teléfono esté bloqueado o en silencio, y se ve en el
+/// Apple Watch. La metadata va vacía: la vista no necesita nada más.
+@available(iOS 26.0, *)
+public struct RelojMetadata: AlarmMetadata {
+  public init() {}
+}
+#endif

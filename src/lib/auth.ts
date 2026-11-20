@@ -77,6 +77,7 @@ export async function linkAppleNative() {
   });
   if (error) throw error;
   await persistAppleName(credential);
+  await syncIdentityToMetadata();
 }
 
 /** Código de autorización fresco, requerido para revocar tokens al borrar la cuenta. */
@@ -133,7 +134,9 @@ export async function linkOAuth(provider: OAuthProvider) {
     options: { redirectTo: authRedirectUri(), skipBrowserRedirect: true },
   });
   if (error) throw error;
-  return runBrowserFlow(data.url);
+  const ok = await runBrowserFlow(data.url);
+  if (ok) await syncIdentityToMetadata();
+  return ok;
 }
 
 /* ───────────────────────── Vincular vs. mergear ───────────────────────── */
@@ -236,11 +239,42 @@ export async function deleteAccount() {
 
 /* ───────────────────────── Helpers ───────────────────────── */
 
-export function displayName(user: User | null | undefined) {
+/** El nombre a mostrar: el apodo si lo eligió, si no el de la cuenta. */
+export function displayName(user: User | null | undefined, nickname?: string | null) {
   if (!user) return '';
+  if (nickname?.trim()) return nickname.trim();
   if (user.is_anonymous) return 'Invitado';
   const m = user.user_metadata ?? {};
-  return (m.full_name || m.name || user.email || 'Jugador') as string;
+  const ident = identityProfile(user);
+  return (m.full_name || m.name || ident.name || user.email?.split('@')[0] || 'Jugador') as string;
+}
+
+/** Nombre y foto que trajo una cuenta vinculada (quedan en identities, no en metadata). */
+function identityProfile(user: User | null | undefined): { name?: string; avatar?: string } {
+  for (const i of user?.identities ?? []) {
+    const d = (i.identity_data ?? {}) as Record<string, unknown>;
+    const name = (d.full_name ?? d.name) as string | undefined;
+    const avatar = (d.avatar_url ?? d.picture) as string | undefined;
+    if (name || avatar) return { name: name || undefined, avatar: avatar || undefined };
+  }
+  return {};
+}
+
+/**
+ * Después de vincular Google/Apple siendo invitado, la metadata sigue vacía y
+ * el grupo te veía "Sin nombre". Se copian nombre y foto de la identidad nueva.
+ * (El trigger de la base hace lo mismo; esto cubre bases sin migrar.)
+ */
+async function syncIdentityToMetadata() {
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  if (!user) return;
+  const m = user.user_metadata ?? {};
+  const ident = identityProfile(user);
+  const patch: Record<string, string> = {};
+  if (!m.full_name && !m.name && ident.name) patch.full_name = ident.name;
+  if (!m.avatar_url && !m.picture && ident.avatar) patch.avatar_url = ident.avatar;
+  if (Object.keys(patch).length) await supabase.auth.updateUser({ data: patch });
 }
 
 export function providersOf(user: User | null | undefined): string[] {

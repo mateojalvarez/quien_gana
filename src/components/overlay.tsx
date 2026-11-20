@@ -3,13 +3,12 @@ import {
   Animated,
   BackHandler,
   Easing,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   Text,
   View,
   type TextInputProps,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/haptics';
@@ -198,7 +197,7 @@ function SheetLayer({
         />
       </Animated.View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView behavior="padding">
       <Animated.View
         style={{
           transform: [{ translateY: translate }],

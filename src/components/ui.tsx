@@ -7,7 +7,6 @@ import {
   Easing,
   Pressable,
   RefreshControl,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -17,6 +16,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardStickyView, KeyboardToolbar } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/haptics';
@@ -137,6 +137,11 @@ export function IconButton({
   );
 }
 
+/** Alto aproximado del footer (botón + aire): el input enfocado queda por encima. */
+const FOOTER_SPACE = 96;
+/** Alto de la barra Anterior/Siguiente/Listo de arriba del teclado. */
+const TOOLBAR_H = 42;
+
 type ScreenProps = {
   title?: string;
   /** Línea chica arriba del título. */
@@ -152,6 +157,11 @@ type ScreenProps = {
   /** Tirar para refrescar; sin `onRefresh` la pantalla se comporta igual que antes. */
   onRefresh?: () => void;
   refreshing?: boolean;
+  /**
+   * Barra arriba del teclado con anterior/siguiente/Listo. Hace falta con los
+   * teclados numéricos, que no traen "return" para pasar al próximo campo.
+   */
+  keyboardToolbar?: boolean;
 };
 
 export function Screen({
@@ -166,7 +176,9 @@ export function Screen({
   decor,
   onRefresh,
   refreshing,
+  keyboardToolbar,
 }: ScreenProps) {
+  const toolbarH = keyboardToolbar ? TOOLBAR_H : 0;
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
   const pad = padded ? { paddingHorizontal: space.xl } : undefined;
@@ -204,7 +216,10 @@ export function Screen({
       )}
 
       {scroll ? (
-        <ScrollView
+        // Scroll que sigue al input enfocado: al escribir, el campo queda siempre
+        // arriba del teclado (y del footer, que sube pegado a él).
+        <KeyboardAwareScrollView
+          bottomOffset={(footer ? FOOTER_SPACE : space.xl) + toolbarH}
           contentContainerStyle={{ paddingBottom: (footer ? space.lg : insets.bottom + space.huge) }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -213,23 +228,29 @@ export function Screen({
           }
         >
           {content}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       ) : (
         <View style={{ flex: 1 }}>{content}</View>
       )}
 
       {footer ? (
-        <View
-          style={{
-            paddingHorizontal: space.xl,
-            paddingTop: space.md,
-            paddingBottom: insets.bottom + space.lg,
-            backgroundColor: c.bg,
-          }}
-        >
-          {footer}
-        </View>
+        // Con el teclado abierto el footer sube con él; el safe area de abajo ya
+        // lo ocupa el teclado, así que se descuenta.
+        <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom - toolbarH }}>
+          <View
+            style={{
+              paddingHorizontal: space.xl,
+              paddingTop: space.md,
+              paddingBottom: insets.bottom + space.lg,
+              backgroundColor: c.bg,
+            }}
+          >
+            {footer}
+          </View>
+        </KeyboardStickyView>
       ) : null}
+
+      {keyboardToolbar ? <KeyboardToolbar doneText="Listo" /> : null}
     </View>
   );
 }
@@ -242,7 +263,7 @@ export function Card({
   onPress,
   style,
   big,
-  clip,
+  clip = true,
 }: {
   children: ReactNode;
   /** Color pleno de la tarjeta; si falta usa el neutro del tema. */
@@ -250,7 +271,7 @@ export function Card({
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   big?: boolean;
-  /** Por defecto la arcilla puede salirse de la tarjeta, como en el mockup. */
+  /** La arcilla va siempre adentro, con aire: `clip={false}` sólo para casos puntuales. */
   clip?: boolean;
 }) {
   const { c } = useTheme();

@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { OverlayProvider } from '@/components/overlay';
 import { useInviteLink } from '@/features/grupos/use-invite-link';
@@ -73,9 +74,12 @@ export default function RootLayout() {
   // GestureDetector (el reordenar jugadores, por ejemplo) tira error de render.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <RootNavigator />
-      </AuthProvider>
+      {/* El teclado nunca tapa un input: Screen y las hojas se acomodan solas. */}
+      <KeyboardProvider>
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }
