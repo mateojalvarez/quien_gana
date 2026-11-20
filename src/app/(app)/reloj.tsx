@@ -5,7 +5,7 @@ import { Animated, Easing, Pressable, View } from 'react-native';
 import { Clay } from '@/components/clay';
 import { Bar, Button, Card, Display, Label, Num, Row, Screen, Stepper, Title } from '@/components/ui';
 import { haptic } from '@/lib/haptics';
-import { sonido } from '@/lib/sonido';
+import { fondo, sonido } from '@/lib/sonido';
 import { border, onPlayerColor, palette, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
@@ -33,18 +33,23 @@ export default function Reloj() {
   const avisado = useRef(false);
   const ultimoTic = useRef(-1);
 
+  // Mientras el reloj corre, la app mantiene abierta una sesión de audio
+  // inaudible: es lo único que evita que iOS suspenda el temporizador cuando se
+  // bloquea la pantalla, y sin eso el aviso del final nunca llega.
   useEffect(() => {
     if (!running) return;
+    fondo.activar();
 
     const avisar = () => {
       if (avisado.current) return;
       avisado.current = true;
       setRemaining(0);
       setRunning(false);
+      // La alarma suena en bucle unos segundos y la vibración la acompaña toda,
+      // así el aviso se escucha y se siente aunque el teléfono esté en el
+      // bolsillo y en silencio.
       sonido.alarma();
-      haptic.warning();
-      setTimeout(() => haptic.heavy(), 250);
-      setTimeout(() => haptic.heavy(), 520);
+      haptic.alarma();
     };
 
     const fin = setTimeout(avisar, Math.max(0, endAt.current - Date.now()));
@@ -67,10 +72,23 @@ export default function Reloj() {
     return () => {
       clearTimeout(fin);
       clearInterval(id);
+      fondo.soltar();
     };
   }, [running]);
 
+  // Salir de la pantalla corta el aviso: nadie quiere una alarma sonando en
+  // otro juego.
+  useEffect(
+    () => () => {
+      sonido.callar();
+      haptic.pararAlarma();
+      fondo.soltar();
+    },
+    [],
+  );
+
   function start() {
+    callar();
     const base = remaining === 0 ? duration : remaining;
     if (base === 0) return;
     avisado.current = false;
@@ -81,6 +99,7 @@ export default function Reloj() {
   }
 
   function pick(sec: number) {
+    callar();
     setRunning(false);
     avisado.current = false;
     ultimoTic.current = -1;
@@ -93,6 +112,12 @@ export default function Reloj() {
     setMin(m);
     setSeg(s);
     pick(m * 60 + s);
+  }
+
+  /** Cortar el aviso del final: al pausar, reiniciar o volver a empezar. */
+  function callar() {
+    sonido.callar();
+    haptic.pararAlarma();
   }
 
   const progress = duration ? remaining / duration : 0;
@@ -113,7 +138,11 @@ export default function Reloj() {
             icon={running ? 'pause' : 'play'}
             style={{ flex: 2 }}
             disabled={!running && duration === 0 && remaining === 0}
-            onPress={() => (running ? setRunning(false) : start())}
+            onPress={() => {
+              if (!running) return start();
+              callar();
+              setRunning(false);
+            }}
           />
         </Row>
       }

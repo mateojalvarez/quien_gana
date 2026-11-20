@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useKeepAwake } from 'expo-keep-awake';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -32,6 +33,11 @@ export default function TrucoPartida() {
   const juego = useGames((s) => s.games[id]);
   const addMove = useGames((s) => s.addTrucoMove);
   const finish = useGames((s) => s.finish);
+
+  // Una partida de truco son varias manos mirando las cartas, no la pantalla:
+  // sin esto el teléfono se bloquea solo en la mitad del reparto. Igual que en
+  // el anotador y en corazones.
+  useKeepAwake();
 
   // Antes del return temprano: el orden de los hooks no puede cambiar.
   useTrucoLiveActivity(juego?.kind === 'truco' ? juego : null);

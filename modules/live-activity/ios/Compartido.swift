@@ -114,9 +114,18 @@ public enum Snapshot {
 
 // MARK: - Los botones
 
+/**
+ Los botones se aprietan en la pantalla bloqueada, que es el único lugar donde
+ sirven. Un App Intent, por omisión, pide que el teléfono esté desbloqueado
+ (`.requiresAuthentication`): el toque quedaba esperando un Face ID y el puntaje
+ no se movía. Estos dos no tocan nada privado — anotan un punto en una partida
+ de truco — así que se permiten con el teléfono bloqueado.
+ */
+
 @available(iOS 17.0, *)
 public struct SumarPunto: LiveActivityIntent {
   public static var title: LocalizedStringResource = "Sumar un punto"
+  public static var authenticationPolicy: IntentAuthenticationPolicy { .alwaysAllowed }
 
   @Parameter(title: "Equipo")
   public var equipo: Int
@@ -137,6 +146,7 @@ public struct SumarPunto: LiveActivityIntent {
 @available(iOS 17.0, *)
 public struct Deshacer: LiveActivityIntent {
   public static var title: LocalizedStringResource = "Deshacer el último toque"
+  public static var authenticationPolicy: IntentAuthenticationPolicy { .alwaysAllowed }
 
   public init() {}
 
