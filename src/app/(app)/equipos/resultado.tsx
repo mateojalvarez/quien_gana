@@ -29,7 +29,7 @@ export default function ResultadoEquipos() {
     return (
       <Screen title="Equipos">
         <Body color={c.muted} style={{ marginTop: space.lg }}>
-          No hay equipos armados. Volvé y tocá «Armar equipos».
+          No hay equipos armados. Volvé y tocá «Generar equipos».
         </Body>
       </Screen>
     );

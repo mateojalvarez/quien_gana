@@ -25,6 +25,8 @@ export type Colors = {
   bg: string;
   ink: string;
   muted: string;
+  /** Texto de placeholder: más claro que `muted`, que se lee como ya escrito. */
+  hint: string;
   line: string;
   lineStrong: string;
   wash: string;
@@ -47,6 +49,7 @@ export const colors: Record<ColorScheme, Colors> = {
     bg: palette.marfil,
     ink: palette.tinta,
     muted: palette.tierra,
+    hint: palette.piedra,
     line: palette.arena,
     lineStrong: palette.tinta,
     wash: palette.crema,
@@ -64,6 +67,7 @@ export const colors: Record<ColorScheme, Colors> = {
     bg: palette.tinta,
     ink: palette.marfil,
     muted: '#B4A79C',
+    hint: '#6F635B',
     line: '#3A322D',
     lineStrong: palette.marfil,
     wash: palette.tintaSuave,

@@ -59,7 +59,9 @@ export default function Ajustes() {
   const theme = useSettings((s) => s.theme);
   const setTheme = useSettings((s) => s.setTheme);
   const haptics = useSettings((s) => s.haptics);
+  const sonidos = useSettings((s) => s.sonidos);
   const setHaptics = useSettings((s) => s.setHaptics);
+  const setSonidos = useSettings((s) => s.setSonidos);
   const liveActivities = useSettings((s) => s.liveActivities);
   const setLiveActivities = useSettings((s) => s.setLiveActivities);
   const [appleNative, setAppleNative] = useState(false);
@@ -292,6 +294,16 @@ export default function Ajustes() {
               <Label>Respuesta al tocar botones y cerrar rondas</Label>
             </View>
             <Toggle value={haptics} onChange={setHaptics} label="Vibración" />
+          </Row>
+        ) : null}
+
+        {Platform.OS !== 'web' ? (
+          <Row style={{ justifyContent: 'space-between', marginTop: space.lg, minHeight: 56 }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Title style={{ fontSize: 17 }}>Sonido</Title>
+              <Label>Avisos del reloj y del pulsador. Respeta el silencio del teléfono</Label>
+            </View>
+            <Toggle value={sonidos} onChange={setSonidos} label="Sonido" />
           </Row>
         ) : null}
 

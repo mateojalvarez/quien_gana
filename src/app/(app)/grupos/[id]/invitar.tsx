@@ -5,12 +5,13 @@ import { Share, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { useOverlay } from '@/components/overlay';
-import { Body, Button, Label, Row, Screen, Spinner, Title } from '@/components/ui';
+import { Avatar, Body, Button, Label, Row, Rule, Screen, Spinner, Title } from '@/components/ui';
 import { currentInvite } from '@/features/grupos/api';
+import { useGruposAlEnfocar } from '@/features/grupos/use-grupos';
 import { formatCode, inviteUrl, type Invite } from '@/features/grupos/types';
 import { haptic } from '@/lib/haptics';
 import { groupById, useGrupos } from '@/store/grupos';
-import { border, fonts, palette, radius, space } from '@/theme/tokens';
+import { border, fonts, palette, playerColor, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
 function diasRestantes(expiresAt: string): string {
@@ -23,11 +24,15 @@ function diasRestantes(expiresAt: string): string {
 
 export default function Invitar() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { c } = useTheme();
+  const { c, scheme } = useTheme();
   const overlay = useOverlay();
   const groups = useGrupos((s) => s.groups);
   const addLocal = useGrupos((s) => s.addLocal);
   const group = groupById(groups, id);
+
+  // Esta es LA pantalla donde se espera que alguien entre: mientras está
+  // abierta se vuelve a pedir la lista cada pocos segundos.
+  useGruposAlEnfocar(5000);
 
   const [invite, setInvite] = useState<Invite | null>(null);
   const [error, setError] = useState(false);
@@ -140,6 +145,26 @@ export default function Invitar() {
           <Label style={{ textAlign: 'center', marginTop: space.sm }}>
             Sin cuenta: queda guardado sólo en tu teléfono.
           </Label>
+
+          {/* Se actualiza sola: el que entra por el enlace aparece acá */}
+          <Row style={{ marginTop: space.xxl, justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <Title style={{ fontSize: 19 }}>Ya están adentro</Title>
+            <Label style={{ fontVariant: ['tabular-nums'] }}>{group?.members.length ?? 0}</Label>
+          </Row>
+          <View style={{ marginTop: space.xs }}>
+            {(group?.members ?? []).map((m, i) => (
+              <View key={m.userId}>
+                <Row style={{ minHeight: 54, gap: space.md }}>
+                  <Avatar name={m.name} uri={m.avatarUrl} color={playerColor(i, scheme)} size={34} />
+                  <Title style={{ flex: 1, fontSize: 16 }} numberOfLines={1}>
+                    {m.name}
+                  </Title>
+                  {m.role === 'admin' ? <Label>Admin</Label> : null}
+                </Row>
+                <Rule />
+              </View>
+            ))}
+          </View>
         </>
       )}
       <View style={{ height: space.huge }} />

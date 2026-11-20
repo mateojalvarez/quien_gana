@@ -103,7 +103,7 @@ export default function ArmarEquipos() {
       }
       footer={
         <Button
-          label="Armar equipos"
+          label="Generar equipos"
           trailingIcon="arrowRight"
           disabled={!puedeArmar}
           meta={puedeArmar ? undefined : `Mínimo ${Math.max(2, cantidad)}`}
@@ -128,7 +128,7 @@ export default function ArmarEquipos() {
             onChangeText={setNombre}
             onSubmitEditing={sumar}
             placeholder="Agregar nombre"
-            placeholderTextColor={c.muted}
+            placeholderTextColor={c.hint}
             accessibilityLabel="Nombre del participante"
             returnKeyType="next"
             // el teclado NO se cierra al agregar: cargar ocho nombres seguidos

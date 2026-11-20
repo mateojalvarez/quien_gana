@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
 import { Clay } from '@/components/clay';
+import { useOverlay } from '@/components/overlay';
 import { Icon } from '@/components/icons';
 import {
   Avatar,
@@ -29,6 +30,10 @@ import { groupById, playerNames, useGrupos } from '@/store/grupos';
 import { border, fonts, onPlayerColor, palette, playerColor, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
 
+/** Los tres de siempre; cualquier otro número se carga con «Otro». */
+const OBJETIVOS = [30, 100, 500] as const;
+const MAX_OBJETIVO = 9999;
+
 /** El anotador no reparte cartas, así que su tope es sólo de practicidad. */
 const MAX_PLAYERS_ANOTADOR = 8;
 /** Generala: con más de seis, una vuelta entera se hace eterna. */
@@ -41,6 +46,7 @@ export default function NuevaPartida() {
   const kind: 'anotador' | 'corazones' | 'generala' =
     kindParam === 'corazones' ? 'corazones' : kindParam === 'generala' ? 'generala' : 'anotador';
   const { c, scheme } = useTheme();
+  const overlay = useOverlay();
   const create = useGames((s) => s.create);
 
   // El grupo activo precarga a sus integrantes: con cuenta y sin cuenta.
@@ -79,6 +85,25 @@ export default function NuevaPartida() {
   // nuevo, así que jugadores y mazos sólo definen el máximo de bazas por ronda.
   const maxPlayers = kind === 'corazones' ? LIMITS.maxPlayers : kind === 'generala' ? MAX_PLAYERS_GENERALA : MAX_PLAYERS_ANOTADOR;
   const maxRounds = LIMITS.maxRounds;
+
+  const otroObjetivo = target != null && !OBJETIVOS.includes(target as (typeof OBJETIVOS)[number]);
+
+  async function pedirObjetivo() {
+    haptic.tap();
+    const escrito = await overlay.prompt({
+      title: 'Puntaje objetivo',
+      message: `El que diga el juego: hasta ${MAX_OBJETIVO}.`,
+      placeholder: '250',
+      initial: otroObjetivo ? String(target) : '',
+      keyboardType: 'number-pad',
+      maxLength: 4,
+      confirmLabel: 'Usar',
+    });
+    if (!escrito) return;
+    const n = parseInt(escrito.replace(/[^\d]/g, ''), 10);
+    if (!Number.isFinite(n) || n < 1) return;
+    setTarget(Math.min(n, MAX_OBJETIVO));
+  }
 
   function setPlayerName(id: string, name: string) {
     setPlayers((ps) => ps.map((p) => (p.id === id ? { ...p, name } : p)));
@@ -207,7 +232,7 @@ export default function NuevaPartida() {
                 value={name}
                 onChangeText={(v) => setPlayerName(id, v)}
                 placeholder={`Jugador ${i + 1}`}
-                placeholderTextColor={c.muted}
+                placeholderTextColor={c.hint}
                 style={{ flex: 1, fontFamily: fonts.semibold, fontSize: 17, color: c.ink, paddingVertical: space.md }}
                 returnKeyType="next"
                 autoCapitalize="words"
@@ -323,58 +348,35 @@ export default function NuevaPartida() {
 
             <Label style={{ marginTop: space.lg, marginBottom: space.sm }}>Puntaje objetivo</Label>
             <Card color={palette.salvia} style={{ padding: space.lg, gap: space.md }}>
-              <Row style={{ justifyContent: 'space-between' }}>
+              <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: space.md }}>
                 <Num style={{ fontSize: 34, fontFamily: fonts.black }} color={onPlayerColor}>
                   {target ?? '—'}
                 </Num>
-                <Row style={{ gap: space.sm }}>
-                  {[30, 100, 500].map((n) => (
-                    <Pressable
+                <Row style={{ flex: 1, flexWrap: 'wrap', justifyContent: 'flex-end', gap: space.sm }}>
+                  {OBJETIVOS.map((n) => (
+                    <Pildora
                       key={n}
-                      accessibilityRole="button"
+                      label={String(n)}
+                      activa={target === n}
                       onPress={() => {
                         haptic.tap();
                         setTarget(n);
                       }}
-                      style={({ pressed }) => ({
-                        height: 36,
-                        paddingHorizontal: space.md,
-                        borderRadius: radius.pill,
-                        borderWidth: border,
-                        borderColor: onPlayerColor,
-                        backgroundColor: target === n ? onPlayerColor : 'transparent',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        opacity: pressed ? 0.7 : 1,
-                      })}
-                    >
-                      <Num style={{ fontSize: 15 }} color={target === n ? palette.marfil : onPlayerColor}>
-                        {n}
-                      </Num>
-                    </Pressable>
+                    />
                   ))}
-                  <Pressable
-                    accessibilityRole="button"
+                  <Pildora
+                    label="Otro"
+                    activa={otroObjetivo}
+                    onPress={pedirObjetivo}
+                  />
+                  <Pildora
+                    label="Sin límite"
+                    activa={target == null}
                     onPress={() => {
                       haptic.tap();
                       setTarget(null);
                     }}
-                    style={({ pressed }) => ({
-                      height: 36,
-                      paddingHorizontal: space.md,
-                      borderRadius: radius.pill,
-                      borderWidth: border,
-                      borderColor: onPlayerColor,
-                      backgroundColor: target == null ? onPlayerColor : 'transparent',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: pressed ? 0.7 : 1,
-                    })}
-                  >
-                    <Label color={target == null ? palette.marfil : onPlayerColor} style={{ fontSize: 14 }}>
-                      Sin límite
-                    </Label>
-                  </Pressable>
+                  />
                 </Row>
               </Row>
             </Card>
@@ -385,5 +387,31 @@ export default function NuevaPartida() {
         )}
       </View>
     </Screen>
+  );
+}
+
+/** Píldora de la tarjeta de objetivo: va sobre color, así que el texto es tinta. */
+function Pildora({ label, activa, onPress }: { label: string; activa: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: activa }}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        height: 36,
+        paddingHorizontal: space.md,
+        borderRadius: radius.pill,
+        borderWidth: border,
+        borderColor: onPlayerColor,
+        backgroundColor: activa ? onPlayerColor : 'transparent',
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <Label color={activa ? palette.marfil : onPlayerColor} style={{ fontSize: 14.5 }}>
+        {label}
+      </Label>
+    </Pressable>
   );
 }

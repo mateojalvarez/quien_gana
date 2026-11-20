@@ -87,7 +87,7 @@ export default function Juegos() {
             onChangeText={setBusqueda}
             placeholder="Buscar"
             accessibilityLabel="Buscar juegos"
-            placeholderTextColor={c.muted}
+            placeholderTextColor={c.hint}
             returnKeyType="search"
             autoCorrect={false}
             autoCapitalize="none"
@@ -171,28 +171,49 @@ function Fila({
 
   return (
     <View style={{ minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-      <View
-        style={{
-          width: 46,
-          height: 46,
-          borderRadius: 14,
-          backgroundColor: tool.color,
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: pronto ? 0.55 : 1,
+      {/* La fila entera abre el juego: el nombre se ve tocable y tiene que serlo.
+          La estrella y el botón quedan afuera para no comerse el toque. */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={pronto ? `${tool.name}: todavía no está` : `${tool.cta} ${tool.name}`}
+        accessibilityState={{ disabled: pronto }}
+        disabled={pronto}
+        onPress={() => {
+          haptic.tap();
+          onPlay();
         }}
+        style={({ pressed }) => ({
+          flex: 1,
+          minHeight: 64,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: space.md,
+          opacity: pressed ? 0.6 : 1,
+        })}
       >
-        <Clay name={tool.clay} size={38} />
-      </View>
+        <View
+          style={{
+            width: 46,
+            height: 46,
+            borderRadius: 14,
+            backgroundColor: tool.color,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pronto ? 0.55 : 1,
+          }}
+        >
+          <Clay name={tool.clay} size={38} />
+        </View>
 
-      <View style={{ flex: 1, gap: 1, opacity: pronto ? 0.55 : 1 }}>
-        <Title style={{ fontSize: 16 }} numberOfLines={1}>
-          {tool.name}
-        </Title>
-        <Label numberOfLines={1} style={{ fontFamily: fonts.medium }}>
-          {tool.sub}
-        </Label>
-      </View>
+        <View style={{ flex: 1, gap: 1, opacity: pronto ? 0.55 : 1 }}>
+          <Title style={{ fontSize: 16 }} numberOfLines={1}>
+            {tool.name}
+          </Title>
+          <Label numberOfLines={1} style={{ fontFamily: fonts.medium }}>
+            {tool.sub}
+          </Label>
+        </View>
+      </Pressable>
 
       {pronto ? (
         <Tag label="Pronto" bg={c.wash} color={c.muted} />
@@ -215,7 +236,7 @@ function Fila({
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Jugar ${tool.name}`}
+            accessibilityLabel={`${tool.cta} ${tool.name}`}
             onPress={() => {
               haptic.tap();
               onPlay();
@@ -231,7 +252,7 @@ function Fila({
             })}
           >
             <Label color={c.inverseInk} style={{ fontSize: 14 }}>
-              Jugar
+              {tool.cta}
             </Label>
           </Pressable>
         </>

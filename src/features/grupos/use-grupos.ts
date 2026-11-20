@@ -1,3 +1,4 @@
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect } from 'react';
 
 import { useAuth } from '@/providers/auth-provider';
@@ -23,6 +24,24 @@ export function useGruposSync() {
       })
       .catch(() => {});
   }, [userId, refresh]);
+}
+
+/**
+ * Refresca cada vez que la pantalla se enfoca. Con `cada` además repite
+ * mientras siga enfocada: es lo que hace que el que se suma por el enlace
+ * aparezca sin salir de la pantalla de invitar.
+ */
+export function useGruposAlEnfocar(cada?: number) {
+  const refresh = useRefreshGrupos();
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      if (!cada) return;
+      const id = setInterval(refresh, cada);
+      return () => clearInterval(id);
+    }, [refresh, cada]),
+  );
 }
 
 export function useRefreshGrupos() {

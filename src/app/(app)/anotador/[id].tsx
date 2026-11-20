@@ -130,7 +130,7 @@ export default function AnotadorGame() {
                         }}
                         keyboardType="number-pad"
                         placeholder="0"
-                        placeholderTextColor={c.muted}
+                        placeholderTextColor={c.hint}
                         accessibilityLabel={`Puntos de ${p.name} en la ronda ${roundNo}`}
                         style={{
                           fontFamily: fonts.black,

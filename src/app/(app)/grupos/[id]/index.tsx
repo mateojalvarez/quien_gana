@@ -7,7 +7,7 @@ import { Icon } from '@/components/icons';
 import { useOverlay } from '@/components/overlay';
 import { Avatar, Body, Button, Card, IconButton, Label, Row, Rule, Screen, Tag, Title } from '@/components/ui';
 import { deleteGroup, removeMember, renameGroup } from '@/features/grupos/api';
-import { useRefreshGrupos, useSetActiveGroup } from '@/features/grupos/use-grupos';
+import { useGruposAlEnfocar, useRefreshGrupos, useSetActiveGroup } from '@/features/grupos/use-grupos';
 import { haptic } from '@/lib/haptics';
 import { useAuth } from '@/providers/auth-provider';
 import { groupById, memberRows, SIN_LOCALES, useGrupos } from '@/store/grupos';
@@ -22,11 +22,16 @@ export default function GrupoDetalle() {
   const groups = useGrupos((s) => s.groups);
   const locals = useGrupos((s) => s.locals[id] ?? SIN_LOCALES);
   const activeId = useGrupos((s) => s.activeId);
+  const loading = useGrupos((s) => s.loading);
   const addLocal = useGrupos((s) => s.addLocal);
   const renameLocal = useGrupos((s) => s.renameLocal);
   const removeLocal = useGrupos((s) => s.removeLocal);
   const refresh = useRefreshGrupos();
   const setActive = useSetActiveGroup();
+
+  // Al entrar siempre se pide la lista de nuevo: si alguien se sumó por el
+  // enlace mientras la pantalla estaba abierta en otra pestaña, acá aparece.
+  useGruposAlEnfocar();
 
   const group = groupById(groups, id);
   const meId = session?.user.id;
@@ -150,6 +155,8 @@ export default function GrupoDetalle() {
     <Screen
       title={group.name}
       meta={soyAdmin ? 'Grupo · lo administrás vos' : 'Grupo'}
+      onRefresh={refresh}
+      refreshing={loading}
       right={<IconButton name="sliders" label="Opciones del grupo" onPress={editar} />}
       footer={
         <Button

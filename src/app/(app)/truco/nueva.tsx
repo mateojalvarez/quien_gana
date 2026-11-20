@@ -73,7 +73,7 @@ export default function NuevoTruco() {
               value={nombre}
               onChangeText={(t) => setTeams((ts) => ts.map((v, j) => (j === i ? t : v)))}
               placeholder={DEFAULTS.teams[i]}
-              placeholderTextColor={c.muted}
+              placeholderTextColor={c.hint}
               accessibilityLabel={`Nombre del equipo ${i + 1}`}
               maxLength={20}
               style={{ flex: 1, fontFamily: fonts.semibold, fontSize: 17, color: c.ink, paddingVertical: space.md }}

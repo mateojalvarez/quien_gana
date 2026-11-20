@@ -9,6 +9,7 @@ import { marginMs } from '@/features/pulsador/logic';
 import type { Mode } from '@/features/pulsador/types';
 import { quality } from '@/lib/clock-sync';
 import { haptic } from '@/lib/haptics';
+import { sonido } from '@/lib/sonido';
 import { useRoom, type Room } from '@/lib/room';
 import { onPlayerColor, palette, playerColor, radius, space } from '@/theme/tokens';
 import { useTheme } from '@/theme/use-theme';
@@ -153,6 +154,7 @@ function Arena({ room, asHost }: { room: Room; asHost: boolean }) {
     const h = setTimeout(
       () => {
         setSonoEn(id);
+        sonido.senal();
         haptic.warning();
       },
       Math.max(0, goAtLocal - Date.now()),
@@ -199,6 +201,7 @@ function Arena({ room, asHost }: { room: Room; asHost: boolean }) {
         onTouchStart={() => {
           if (!puedoTocar) return;
           room.tap();
+          sonido.clic();
           haptic.heavy();
         }}
         style={{

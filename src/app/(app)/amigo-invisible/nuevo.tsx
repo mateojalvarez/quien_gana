@@ -239,7 +239,7 @@ export default function NuevoSorteo() {
               value={quien}
               onChangeText={setQuien}
               placeholder="Nombre"
-              placeholderTextColor={c.muted}
+              placeholderTextColor={c.hint}
               accessibilityLabel="Nombre del participante"
               autoCapitalize="words"
               maxLength={40}
@@ -261,7 +261,7 @@ export default function NuevoSorteo() {
               onChangeText={setCorreo}
               onSubmitEditing={sumar}
               placeholder="Correo"
-              placeholderTextColor={c.muted}
+              placeholderTextColor={c.hint}
               accessibilityLabel="Correo del participante"
               keyboardType="email-address"
               autoCapitalize="none"

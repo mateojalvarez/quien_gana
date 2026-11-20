@@ -121,7 +121,7 @@ export default function Ruleta() {
             onChangeText={setNombre}
             onSubmitEditing={sumar}
             placeholder="Agregar premio"
-            placeholderTextColor={c.muted}
+            placeholderTextColor={c.hint}
             accessibilityLabel="Nombre del premio"
             returnKeyType="next"
             // El teclado no se cierra al agregar: cargar diez premios seguidos

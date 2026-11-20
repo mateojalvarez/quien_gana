@@ -16,6 +16,8 @@ export type Tool = {
   sub: string;
   /** Palabra corta para la tarjeta de favoritos. */
   kicker: string;
+  /** Lo que hace el botón de su fila: en Equipos no se "juega", se genera. */
+  cta: string;
   clay: ClayName;
   color: string;
   categoria: Categoria;
@@ -39,6 +41,7 @@ export const TOOLS: Tool[] = [
     name: 'Corazones',
     sub: 'Pedidos, bazas y bonus',
     kicker: 'Anotador',
+    cta: 'Anotar',
     clay: 'corazon',
     color: palette.mostaza,
     categoria: 'anotadores',
@@ -49,6 +52,7 @@ export const TOOLS: Tool[] = [
     name: 'Truco',
     sub: 'A 15 o a 30, con fósforos',
     kicker: 'Anotador',
+    cta: 'Anotar',
     clay: 'cartaEspada',
     color: palette.salvia,
     categoria: 'anotadores',
@@ -59,6 +63,7 @@ export const TOOLS: Tool[] = [
     name: 'Generala',
     sub: 'Dados y planilla juntos',
     kicker: 'Anotador',
+    cta: 'Anotar',
     clay: 'dado',
     color: palette.crema,
     categoria: 'anotadores',
@@ -69,6 +74,7 @@ export const TOOLS: Tool[] = [
     name: 'Anotador libre',
     sub: 'Puntos por ronda, cualquier juego',
     kicker: 'Libre',
+    cta: 'Anotar',
     clay: 'lapiz',
     color: palette.rosa,
     categoria: 'anotadores',
@@ -79,6 +85,7 @@ export const TOOLS: Tool[] = [
     name: 'Dados',
     sub: 'De 4 a 20 caras, hasta 6',
     kicker: 'Azar',
+    cta: 'Tirar',
     clay: 'dado',
     color: palette.tomate,
     categoria: 'dados',
@@ -89,6 +96,7 @@ export const TOOLS: Tool[] = [
     name: 'Reloj',
     sub: 'Turnos con cuenta regresiva',
     kicker: 'Turnos',
+    cta: 'Arrancar',
     clay: 'relojArena',
     color: palette.crema,
     categoria: 'tiempo',
@@ -99,6 +107,7 @@ export const TOOLS: Tool[] = [
     name: 'Pulsador',
     sub: 'El primero que toca gana',
     kicker: 'Rapidez',
+    cta: 'Jugar',
     clay: 'pulsador',
     color: palette.salvia,
     categoria: 'reaccion',
@@ -107,8 +116,9 @@ export const TOOLS: Tool[] = [
   {
     id: 'equipos',
     name: 'Equipos',
-    sub: 'Repartir jugadores al azar',
+    sub: 'Generar equipos al azar',
     kicker: 'Sorteo',
+    cta: 'Generar',
     clay: 'esferas',
     color: palette.rosa,
     categoria: 'sorteos',
@@ -119,6 +129,7 @@ export const TOOLS: Tool[] = [
     name: 'Ruleta',
     sub: 'Cargá premios y girá',
     kicker: 'Sorteo',
+    cta: 'Girar',
     clay: 'destello',
     color: palette.tomate,
     categoria: 'sorteos',
@@ -129,6 +140,7 @@ export const TOOLS: Tool[] = [
     name: 'Amigo invisible',
     sub: 'Por correo, secreto hasta para vos',
     kicker: 'Sorteo',
+    cta: 'Sortear',
     clay: 'cinta',
     color: palette.salvia,
     categoria: 'sorteos',

@@ -1,5 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Animated, BackHandler, Easing, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import {
+  Animated,
+  BackHandler,
+  Easing,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  Text,
+  View,
+  type TextInputProps,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/haptics';
@@ -40,6 +50,8 @@ type PromptOpts = {
   confirmLabel?: string;
   cancelLabel?: string;
   maxLength?: number;
+  /** 'number-pad' para pedir un número, como el objetivo del anotador. */
+  keyboardType?: TextInputProps['keyboardType'];
 };
 
 type MenuOpts = { title?: string; message?: string; items: MenuItem[]; cancelLabel?: string };
@@ -285,6 +297,7 @@ function PromptBody({
         value={valor}
         onChangeText={cambiar}
         placeholder={opts.placeholder}
+        keyboardType={opts.keyboardType}
         maxLength={opts.maxLength ?? 40}
         autoFocus
         returnKeyType="done"

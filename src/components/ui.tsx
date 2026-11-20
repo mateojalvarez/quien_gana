@@ -6,6 +6,7 @@ import {
   Animated,
   Easing,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -148,6 +149,9 @@ type ScreenProps = {
   footer?: ReactNode;
   /** Ilustración que puede asomar detrás del encabezado. */
   decor?: ReactNode;
+  /** Tirar para refrescar; sin `onRefresh` la pantalla se comporta igual que antes. */
+  onRefresh?: () => void;
+  refreshing?: boolean;
 };
 
 export function Screen({
@@ -160,6 +164,8 @@ export function Screen({
   padded = true,
   footer,
   decor,
+  onRefresh,
+  refreshing,
 }: ScreenProps) {
   const { c } = useTheme();
   const insets = useSafeAreaInsets();
@@ -202,6 +208,9 @@ export function Screen({
           contentContainerStyle={{ paddingBottom: (footer ? space.lg : insets.bottom + space.huge) }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={c.muted} /> : undefined
+          }
         >
           {content}
         </ScrollView>
@@ -495,6 +504,7 @@ export function Stepper({
   onChange,
   min = 0,
   max = 99,
+  step = 1,
   size = 44,
   labelMinus = 'Restar',
   labelPlus = 'Sumar',
@@ -504,6 +514,8 @@ export function Stepper({
   onChange: (n: number) => void;
   min?: number;
   max?: number;
+  /** De cuánto en cuánto: los segundos del reloj van de 5 en 5. */
+  step?: number;
   size?: number;
   labelMinus?: string;
   labelPlus?: string;
@@ -543,11 +555,11 @@ export function Stepper({
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-      {btn('minus', value - 1, value <= min, labelMinus, false)}
+      {btn('minus', Math.max(min, value - step), value <= min, labelMinus, false)}
       <Num numberOfLines={1} style={{ minWidth: 42, textAlign: 'center', fontSize: 26, fontFamily: fonts.black }} color={ink}>
         {value}
       </Num>
-      {btn('plus', value + 1, value >= max, labelPlus, true)}
+      {btn('plus', Math.min(max, value + step), value >= max, labelPlus, true)}
     </View>
   );
 }
@@ -710,7 +722,7 @@ export function Field({
         }}
       >
         <TextInput
-          placeholderTextColor={c.muted}
+          placeholderTextColor={c.hint}
           {...props}
           style={{
             fontFamily: mono ? fonts.bold : fonts.medium,

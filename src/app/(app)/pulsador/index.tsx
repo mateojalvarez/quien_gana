@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Clay } from '@/components/clay';
 import { Body, Button, Card, Display, Field, Label, Row, Screen, Segmented } from '@/components/ui';
 import { haptic } from '@/lib/haptics';
+import { sonido } from '@/lib/sonido';
 import { makeCode, normalizeCode } from '@/lib/room';
 import { useAuth } from '@/providers/auth-provider';
 import { onPlayerColor, palette, playerColor, radius, space } from '@/theme/tokens';
@@ -208,6 +209,7 @@ function Arena({ players, mode, onExit }: { players: number; mode: Mode; onExit:
   function scheduleGo() {
     goTimer.current = setTimeout(() => {
       setStatus('go');
+      sonido.senal();
       haptic.warning();
     }, randomDelay());
   }
@@ -233,6 +235,7 @@ function Arena({ players, mode, onExit }: { players: number; mode: Mode; onExit:
     setStatus('done');
     setWinner(i);
     clearTimeout(goTimer.current);
+    sonido.clic();
     haptic.heavy();
   }
 
