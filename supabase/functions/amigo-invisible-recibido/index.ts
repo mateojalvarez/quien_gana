@@ -13,6 +13,14 @@
 // una URL pública y no tiene por qué contar de qué sorteo se trata ni a quién
 // le toca regalar quién.
 //
+// ⚠️ OJO: desplegada en *.supabase.co esta página NO se ve como página. El
+// gateway de Supabase le reescribe el Content-Type a text/plain y le agrega
+// nosniff a cualquier respuesta HTML —es a propósito, para que nadie use el
+// dominio de Supabase para armar un phishing— así que el navegador muestra el
+// código fuente. Para que funcione, el HTML tiene que salir de un dominio
+// propio: o se sirve la página desde quien-gana.app y postea acá, o el
+// proyecto usa el add-on de dominio propio de Supabase.
+//
 // Deploy:   supabase functions deploy amigo-invisible-recibido --no-verify-jwt
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -41,12 +49,13 @@ const pagina = (titulo: string, cuerpo: string, status = 200) =>
     { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } },
   );
 
+// Va con 200 y no con 404: un 404 le confirmaría a quien sondea que ese token
+// no existe. Misma razón por la que el pixel devuelve siempre la imagen.
 const invalida = () =>
   pagina(
     'Enlace vencido',
     `<h1 style="margin:0;font:700 22px/1.3 -apple-system,Segoe UI,Roboto,Arial,sans-serif">Este enlace ya no sirve</h1>
      <p style="margin:12px 0 0;color:#5a5349">Puede que el sorteo se haya borrado. Si te llegó tu amigo invisible, no hace falta hacer nada más.</p>`,
-    404,
   );
 
 const listo = (titulo: string) =>
