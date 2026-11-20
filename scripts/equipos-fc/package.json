@@ -1,0 +1,13 @@
+{
+  "name": "equipos-fc",
+  "private": true,
+  "type": "module",
+  "description": "Genera el catálogo de equipos FC (ratings) que usa el generador de torneos. No es dependencia de la app.",
+  "scripts": {
+    "generar": "node generar.mjs",
+    "publicar": "node generar.mjs --publicar"
+  },
+  "dependencies": {
+    "eafc-db-kit": "1.1.0"
+  }
+}

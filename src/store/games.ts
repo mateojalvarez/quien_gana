@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import type { AnotadorGame, CorazonesGame, CorazonesRound, Game, GeneralaGame, Player, TrucoGame, TrucoMove } from '@/features/types';
+import type { DatosTorneo } from '@/features/torneo/types';
+import type { AnotadorGame, CorazonesGame, CorazonesRound, Game, GeneralaGame, Player, TorneoGame, TrucoGame, TrucoMove } from '@/features/types';
 import { movePossible } from '@/features/truco/rules';
 import { uid } from '@/lib/id';
 
@@ -37,6 +38,10 @@ type GamesState = {
     ganaServida?: boolean,
   ) => void;
   finish: (id: string, finished: boolean) => void;
+  /** Torneo: los jugadores ya vienen con id (y su `ref` al grupo, si tienen). */
+  crearTorneo: (title: string, players: Player[], datos: DatosTorneo) => string;
+  /** Torneo: aplica una transformación pura (features/torneo/rules) y guarda. */
+  actualizarTorneo: (id: string, cambio: (g: TorneoGame) => TorneoGame) => void;
 
   // usados por sync
   mergeRemote: (remote: Game[]) => void;
@@ -129,7 +134,8 @@ export const useGames = create<GamesState>()(
           return;
         }
         // Generala no deshace: cada anotación cierra una categoría y el turno pasa.
-        if (g.kind === 'generala') return;
+        // Generala y Torneo no deshacen por acá (el torneo corrige partido por partido).
+        if (g.kind === 'generala' || g.kind === 'torneo') return;
         if (g.rounds.length === 0) return;
         set((s) => touch(s, { ...g, rounds: g.rounds.slice(0, -1), finishedAt: null } as Game));
       },
@@ -160,6 +166,30 @@ export const useGames = create<GamesState>()(
       finish: (id, finished) => {
         const g = get().games[id];
         if (g) set((s) => touch(s, { ...g, finishedAt: finished ? now() : null }));
+      },
+
+      crearTorneo: (title, players, datos) => {
+        const id = uid();
+        const game: TorneoGame = {
+          ...datos,
+          id,
+          title,
+          players,
+          createdAt: now(),
+          updatedAt: now(),
+          finishedAt: null,
+          kind: 'torneo',
+        };
+        set((s) => touch(s, game));
+        return id;
+      },
+
+      actualizarTorneo: (id, cambio) => {
+        const g = get().games[id];
+        if (g?.kind !== 'torneo') return;
+        const nuevo = cambio(g);
+        const finishedAt = nuevo.fase === 'terminado' ? (g.finishedAt ?? now()) : null;
+        set((s) => touch(s, { ...nuevo, finishedAt }));
       },
 
       mergeRemote: (remote) =>

@@ -1,4 +1,11 @@
-export type Player = { id: string; name: string };
+import type { DatosTorneo } from './torneo/types';
+
+/**
+ * `ref` ata al jugador con un integrante real de un grupo (con cuenta o local).
+ * Opcional: las partidas viejas y los invitados no lo traen.
+ */
+export type PlayerRef = { tipo: 'cuenta'; userId: string } | { tipo: 'local'; memberId: string };
+export type Player = { id: string; name: string; ref?: PlayerRef };
 
 type GameBase = {
   id: string;
@@ -62,9 +69,12 @@ export type GeneralaGame = GameBase & {
   servedWinner?: string | null;
 };
 
-export type Game = AnotadorGame | CorazonesGame | TrucoGame | GeneralaGame;
+/** Generador de torneos: liga, grupos + playoff o playoff. Todo el estado en features/torneo. */
+export type TorneoGame = GameBase & DatosTorneo & { kind: 'torneo' };
+
+export type Game = AnotadorGame | CorazonesGame | TrucoGame | GeneralaGame | TorneoGame;
 export type GameKind = Game['kind'];
 
 /** Las partidas con rondas; Truco queda afuera porque cuenta toques. */
 export type RoundGame = AnotadorGame | CorazonesGame;
-export const hasRounds = (g: Game): g is RoundGame => g.kind !== 'truco' && g.kind !== 'generala';
+export const hasRounds = (g: Game): g is RoundGame => g.kind === 'anotador' || g.kind === 'corazones';

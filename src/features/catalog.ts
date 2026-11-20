@@ -7,7 +7,7 @@ import type { Href } from 'expo-router';
 import type { ClayName } from '@/components/clay';
 import { palette } from '@/theme/tokens';
 
-export type Categoria = 'anotadores' | 'dados' | 'tiempo' | 'reaccion' | 'sorteos';
+export type Categoria = 'anotadores' | 'torneos' | 'dados' | 'tiempo' | 'reaccion' | 'sorteos';
 
 export type Tool = {
   id: string;
@@ -29,6 +29,7 @@ export type Tool = {
 
 export const CATEGORIAS: { value: Categoria; label: string }[] = [
   { value: 'anotadores', label: 'Anotadores' },
+  { value: 'torneos', label: 'Torneos' },
   { value: 'dados', label: 'Dados y azar' },
   { value: 'tiempo', label: 'Tiempo' },
   { value: 'reaccion', label: 'Reacción' },
@@ -79,6 +80,17 @@ export const TOOLS: Tool[] = [
     color: palette.rosa,
     categoria: 'anotadores',
     href: '/nueva?kind=anotador',
+  },
+  {
+    id: 'torneo',
+    name: 'Torneo',
+    sub: 'Liga, grupos o playoff, con bombos',
+    kicker: 'Torneo',
+    cta: 'Armar',
+    clay: 'trofeo',
+    color: palette.mostaza,
+    categoria: 'torneos',
+    href: '/torneo/nuevo',
   },
   {
     id: 'dados',

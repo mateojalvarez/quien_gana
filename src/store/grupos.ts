@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { Group, LocalMember, MemberRow } from '@/features/grupos/types';
+import type { Player } from '@/features/types';
 import { uid } from '@/lib/id';
 
 /**
@@ -95,4 +96,22 @@ export function memberRows(group: Group, locals: LocalMember[], meId: string | u
 /** Lo que se precarga al crear una partida: todos, con cuenta y sin cuenta. */
 export function playerNames(group: Group, locals: LocalMember[]): string[] {
   return [...group.members.map((m) => m.name), ...locals.map((m) => m.name)];
+}
+
+/**
+ * Jugadores atados a los integrantes del grupo (con cuenta o locales), para
+ * partidas que necesitan saber quién es quién y no sólo el nombre.
+ * `nuevoId` genera el id del jugador dentro de la partida.
+ */
+export function participantesDeGrupo(
+  group: Group,
+  locals: LocalMember[],
+  meId: string | undefined,
+  nuevoId: () => string,
+): (Player & { avatarUrl: string | null })[] {
+  return memberRows(group, locals, meId).map((m) =>
+    m.kind === 'remote'
+      ? { id: nuevoId(), name: m.name, avatarUrl: m.avatarUrl, ref: { tipo: 'cuenta', userId: m.id } }
+      : { id: nuevoId(), name: m.name, avatarUrl: null, ref: { tipo: 'local', memberId: m.id } },
+  );
 }

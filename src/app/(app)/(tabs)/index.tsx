@@ -11,6 +11,7 @@ import { standings as anotadorStandings } from '@/features/anotador/logic';
 import type { Tool } from '@/features/catalog';
 import { standings as corazonesStandings } from '@/features/corazones/rules';
 import { posiciones as generalaPosiciones, rondas as generalaRondas } from '@/features/generala/rules';
+import { nombreDe, resumen as torneoResumen, tablaLiga } from '@/features/torneo/rules';
 import { scores as trucoScores, summary as trucoSummary } from '@/features/truco/rules';
 import type { Game } from '@/features/types';
 import { displayName } from '@/lib/auth';
@@ -24,6 +25,12 @@ import { useTheme } from '@/theme/use-theme';
 
 /** Quién va ganando. En Truco es el equipo con más puntos, si hay alguno. */
 function leaderOf(g: Game) {
+  if (g.kind === 'torneo') {
+    if (g.campeon) return { player: { id: g.campeon, name: nombreDe(g, g.campeon) }, total: null };
+    if (g.formato.tipo !== 'liga') return null;
+    const [primero] = tablaLiga(g).filas;
+    return primero && primero.pj > 0 ? { player: { id: primero.id, name: nombreDe(g, primero.id) }, total: primero.pts } : null;
+  }
   if (g.kind === 'generala') {
     const [primero] = generalaPosiciones(g.players, g.sheets);
     return primero && primero.total > 0 ? { player: { id: primero.id, name: primero.name }, total: primero.total } : null;
@@ -40,7 +47,9 @@ function leaderOf(g: Game) {
 
 /** Cuánto se jugó ya: rondas, o toques en Truco. */
 const jugadas = (g: Game) =>
-  g.kind === 'truco'
+  g.kind === 'torneo'
+    ? g.partidos.filter((p) => p.gl !== null).length + (g.fase === 'en-juego' ? 1 : 0)
+    : g.kind === 'truco'
     ? g.moves.length
     : g.kind === 'generala'
       ? Object.values(g.sheets).reduce((n, s) => n + Object.keys(s).length, 0)
@@ -49,6 +58,11 @@ const jugadas = (g: Game) =>
 const NOMBRE = { anotador: 'Anotador', corazones: 'Corazones', truco: 'Truco', generala: 'Generala' } as const;
 
 function detalle(g: Game): string {
+  if (g.kind === 'torneo') {
+    const r = torneoResumen(g);
+    const grupo = g.grupoNombre ? ` · ${g.grupoNombre}` : '';
+    return `Torneo · ${r.etapa} · ${r.jugados}/${r.total} partidos${grupo}`;
+  }
   if (g.kind === 'truco') return `Truco · ${trucoSummary(g)}`;
   if (g.kind === 'generala') {
     const anotadas = Math.min(...g.players.map((p) => Object.keys(g.sheets[p.id] ?? {}).length));
@@ -59,7 +73,11 @@ function detalle(g: Game): string {
 }
 
 const hrefOf = (g: Game) =>
-  (g.kind === 'anotador'
+  (g.kind === 'torneo'
+    ? g.fase === 'sorteo'
+      ? `/torneo/${g.id}/sorteo`
+      : `/torneo/${g.id}`
+    : g.kind === 'anotador'
     ? `/anotador/${g.id}`
     : g.kind === 'truco'
       ? `/truco/${g.id}`
@@ -154,7 +172,9 @@ export default function Inicio() {
           <Card color={c.inverseBg} onPress={() => router.push(hrefOf(enCurso))} style={{ marginTop: space.xl, height: 128 }}>
             <Clay
               name={
-                enCurso.kind === 'corazones'
+                enCurso.kind === 'torneo'
+                  ? 'trofeo'
+                  : enCurso.kind === 'corazones'
                   ? 'corazon'
                   : enCurso.kind === 'truco'
                     ? 'cartasEspanolas'
@@ -346,16 +366,16 @@ export default function Inicio() {
                     </View>
                     {lead ? (
                       <View style={{ alignItems: 'flex-end' }}>
-                        <Label>{g.finishedAt ? 'Ganó' : 'Va ganando'}</Label>
+                        <Label>{g.finishedAt ? (g.kind === 'torneo' ? 'Campeón' : 'Ganó') : 'Va ganando'}</Label>
                         <Row style={{ gap: 6 }}>
                           <Label color={c.ink} style={{ fontSize: 14 }} numberOfLines={1}>
                             {lead.player.name}
                           </Label>
-                          <Num style={{ fontSize: 18 }}>{lead.total}</Num>
+                          {lead.total !== null ? <Num style={{ fontSize: 18 }}>{lead.total}</Num> : null}
                         </Row>
                       </View>
                     ) : (
-                      <Label>Sin rondas</Label>
+                      <Label>{g.kind === 'torneo' ? 'Sin partidos' : 'Sin rondas'}</Label>
                     )}
                   </Pressable>
                 );

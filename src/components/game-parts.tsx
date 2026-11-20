@@ -16,6 +16,7 @@ const NOMBRE = { anotador: 'Anotador', corazones: 'Corazones', truco: 'Truco', g
 function resumen(game: Game): string {
   if (game.kind === 'truco') return `Truco · ${trucoSummary(game)}`;
   if (game.kind === 'generala') return `Generala · ${game.players.length} jugadores`;
+  if (game.kind === 'torneo') return `Torneo · ${game.participantes.length} participantes`;
   const n = game.rounds.length;
   return `${NOMBRE[game.kind]} · ${n} ${n === 1 ? 'ronda' : 'rondas'}`;
 }
