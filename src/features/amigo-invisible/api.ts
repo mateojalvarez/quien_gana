@@ -106,7 +106,7 @@ export async function agregarParticipantes(
 export async function listParticipantes(drawId: string): Promise<Participante[]> {
   const { data, error } = await supabase
     .from('secret_santa_members')
-    .select('id, name, email, user_id, sent_at, send_error, attempts, opened_at, opens, opened_unreliable')
+    .select('id, name, email, user_id, sent_at, send_error, attempts, opened_at, opens, opened_unreliable, received_at')
     .eq('draw_id', drawId)
     .order('created_at');
   if (error) throw error;
@@ -121,6 +121,7 @@ export async function listParticipantes(drawId: string): Promise<Participante[]>
     openedAt: r.opened_at,
     opens: r.opens,
     openedUnreliable: r.opened_unreliable,
+    receivedAt: r.received_at,
   }));
 }
 
@@ -177,16 +178,27 @@ const MOTIVO: Record<string, string> = {
   no_encontrado: 'No encontramos el sorteo.',
   todavia_no_se_sorteo: 'Todavía no se sorteó.',
   muy_seguido: 'Recién lo mandaste. Esperá un minuto y probá de nuevo.',
+  config_incompleta:
+    'Al servidor le faltan las claves de envío de correo. Hay que cargarlas con `supabase secrets set` ' +
+    '(la lista está en supabase/functions/.env.example).',
 };
+
+/**
+ * El cuerpo del error trae el código; sin esto el usuario ve "non-2xx".
+ * `faltan` sólo viene con config_incompleta y se agrega al mensaje para no
+ * tener que abrir los logs del proyecto.
+ */
+async function mensajeDeError(error: { context?: Response; message: string }): Promise<string> {
+  const detalle = await error.context?.json?.().catch(() => null);
+  const codigo = detalle?.error as string | undefined;
+  const base = codigo && MOTIVO[codigo] ? MOTIVO[codigo] : (codigo ?? error.message);
+  const faltan = detalle?.faltan as string[] | undefined;
+  return Array.isArray(faltan) && faltan.length > 0 ? `${base}\n\nFaltan: ${faltan.join(', ')}.` : base;
+}
 
 async function invocar(fn: string, body: Record<string, unknown>): Promise<ResultadoEnvio> {
   const { data, error } = await supabase.functions.invoke(fn, { body });
-  if (error) {
-    // El cuerpo del error trae el código: sin esto el usuario ve "non-2xx".
-    const detalle = await (error as { context?: Response }).context?.json?.().catch(() => null);
-    const codigo = detalle?.error as string | undefined;
-    throw new Error(codigo && MOTIVO[codigo] ? MOTIVO[codigo] : (codigo ?? error.message));
-  }
+  if (error) throw new Error(await mensajeDeError(error as { context?: Response; message: string }));
   return { enviados: data?.enviados ?? 0, fallidos: data?.fallidos ?? [] };
 }
 
@@ -195,11 +207,7 @@ export const sortearYEnviar = (drawId: string) => invocar('amigo-invisible-sorte
 /** Sólo funciona si el sorteo se creó a la vista. El servidor es el que decide. */
 export async function verReparto(drawId: string): Promise<Match[]> {
   const { data, error } = await supabase.functions.invoke('amigo-invisible-ver', { body: { drawId } });
-  if (error) {
-    const detalle = await (error as { context?: Response }).context?.json?.().catch(() => null);
-    const codigo = detalle?.error as string | undefined;
-    throw new Error(codigo && MOTIVO[codigo] ? MOTIVO[codigo] : (codigo ?? error.message));
-  }
+  if (error) throw new Error(await mensajeDeError(error as { context?: Response; message: string }));
   return data?.reparto ?? [];
 }
 

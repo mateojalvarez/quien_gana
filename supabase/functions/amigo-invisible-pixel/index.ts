@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     const { data: m } = await admin
       .from('secret_santa_members')
       .select('id, sent_at, opened_at, opens')
-      .eq('pixel_token_hash', aHex(await hashToken(token)))
+      .eq('token_hash', aHex(await hashToken(token)))
       .maybeSingle();
     if (!m) return imagen();
 

@@ -18,6 +18,8 @@ export type DatosMail = {
   /** El anfitrión eligió un sorteo a la vista y puede ver el reparto entero. */
   anfitrionVe: boolean;
   pixelUrl: string | null;
+  /** Botón "ya me llegó": la única señal que de verdad dice que lo vio una persona. */
+  recibidoUrl: string | null;
 };
 
 /**
@@ -49,6 +51,9 @@ export function texto(d: DatosMail): string {
     '',
     ...extra,
     extra.length ? '' : null,
+    ...(d.recibidoUrl
+      ? [`Avisale a quien armó el sorteo que te llegó:`, d.recibidoUrl, '']
+      : []),
     promesa(d.anfitrionVe),
     '',
     '— ¿Quién gana?',
@@ -118,6 +123,19 @@ export function html(d: DatosMail): string {
             ? `<tr><td style="padding:20px 32px 0">
           <table role="presentation" cellpadding="0" cellspacing="0" border="0">${filasExtra}
           </table>
+        </td></tr>`
+            : ''
+        }
+
+        ${
+          d.recibidoUrl
+            ? `<tr><td style="padding:24px 32px 0">
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+            <tr><td align="center" bgcolor="#2b2722" style="border-radius:999px">
+              <a href="${escapar(d.recibidoUrl)}" style="display:inline-block;padding:14px 26px;font:600 15px/1 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#fffdf8;text-decoration:none;border-radius:999px">Marcar como recibido</a>
+            </td></tr>
+          </table>
+          <p style="margin:10px 0 0;font:13px/1.5 -apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#8a8275">Así quien armó el sorteo sabe que te llegó. No muestra a quién te tocó.</p>
         </td></tr>`
             : ''
         }

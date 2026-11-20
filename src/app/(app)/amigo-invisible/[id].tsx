@@ -54,14 +54,18 @@ export default function EstadoSorteo() {
     }, [refrescar]),
   );
 
+  // `confirmado` es el único que se pinta fuerte: es el único que no es una
+  // suposición. Las señales del pixel quedan en tonos suaves a propósito.
   const colorDe = (e: EstadoMail) =>
     e === 'fallo'
       ? { bg: c.bad, fg: c.onColor }
-      : e === 'abierto'
-        ? { bg: palette.salvia, fg: c.ink }
-        : e === 'abierto-dudoso'
-          ? { bg: palette.crema, fg: c.ink }
-          : { bg: c.wash, fg: c.muted };
+      : e === 'confirmado'
+        ? { bg: c.ok, fg: c.onColor }
+        : e === 'abierto'
+          ? { bg: palette.salvia, fg: c.ink }
+          : e === 'abierto-dudoso'
+            ? { bg: palette.crema, fg: c.ink }
+            : { bg: c.wash, fg: c.muted };
 
   async function reenviar(p: Participante) {
     setOcupado(true);
@@ -204,8 +208,9 @@ export default function EstadoSorteo() {
           {/* Decirlo acá y no en letra chica: si no, el anfitrión le reclama a
               alguien que sí leyó el mail. */}
           <Body color={c.muted} style={{ marginTop: space.sm, fontSize: 14 }}>
-            Estas marcas son orientativas. Algunos correos se marcan solos y otros nunca se marcan aunque los
-            hayan leído. Ante la duda, reenviá.
+            «Le llegó» es la única marca segura: la persona tocó el botón del correo. Las demás son
+            orientativas — algunos correos se marcan solos y otros nunca se marcan aunque los hayan leído.
+            Ante la duda, reenviá.
           </Body>
 
           <View style={{ marginTop: space.lg, gap: space.sm }}>
@@ -228,7 +233,11 @@ export default function EstadoSorteo() {
                     </Row>
                     <Label color={c.muted} style={{ fontSize: 13 }} numberOfLines={1}>
                       {p.email}
-                      {p.openedAt ? ` · ${fechaCorta(p.openedAt)}` : ''}
+                      {p.receivedAt
+                        ? ` · ${fechaCorta(p.receivedAt)}`
+                        : p.openedAt
+                          ? ` · ${fechaCorta(p.openedAt)}`
+                          : ''}
                     </Label>
                   </View>
                   <Tag label={ETIQUETA[e]} bg={col.bg} color={col.fg} />

@@ -2,7 +2,8 @@
 // para que las dos escriban exactamente el mismo estado.
 
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
-import { aHex, hashToken, tokenPixel } from './cripto.ts';
+import { aHex, hashToken, tokenMiembro } from './cripto.ts';
+import { enlaces } from './enlaces.ts';
 import type { Cartero } from './mail.ts';
 import { asunto, html, texto } from './plantilla.ts';
 
@@ -34,8 +35,8 @@ export async function mandarUno(
 ): Promise<Resultado> {
   const ahora = new Date().toISOString();
   try {
-    const base = Deno.env.get('PIXEL_BASE_URL');
-    const token = base ? await tokenPixel(sorteo.id, miembro.id) : null;
+    const token = await tokenMiembro(sorteo.id, miembro.id);
+    const { pixelUrl, recibidoUrl } = enlaces(token);
     const datos = {
       sorteo: sorteo.name,
       mensaje: sorteo.message,
@@ -44,7 +45,8 @@ export async function mandarUno(
       destino,
       para: miembro.name,
       anfitrionVe: sorteo.reveal_to_host,
-      pixelUrl: token ? `${base}?t=${encodeURIComponent(token)}` : null,
+      pixelUrl,
+      recibidoUrl,
     };
 
     const providerId = await cartero.enviar({
@@ -60,7 +62,7 @@ export async function mandarUno(
         sent_at: ahora,
         send_error: null,
         attempts: miembro.attempts + 1,
-        ...(token ? { pixel_token_hash: aHex(await hashToken(token)) } : {}),
+        token_hash: aHex(await hashToken(token)),
       })
       .eq('id', miembro.id);
 

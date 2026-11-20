@@ -31,17 +31,29 @@ export type Participante = {
   openedAt: string | null;
   opens: number;
   openedUnreliable: boolean;
+  /** Tocó el botón "ya me llegó" del correo. Esto sí es un acuse de recibo. */
+  receivedAt: string | null;
 };
 
 /**
- * Lo único que se puede afirmar es si el mail salió. La apertura es una señal
- * ruidosa, no un acuse de recibo, y por eso tiene estados propios: ver el
- * comentario largo en supabase/functions/amigo-invisible-pixel/index.ts.
+ * Sólo hay un estado que es una afirmación: `confirmado`, cuando la persona
+ * tocó el botón del correo. La apertura es una señal ruidosa, no un acuse de
+ * recibo, y por eso tiene estados propios: ver el comentario largo en
+ * supabase/functions/amigo-invisible-pixel/index.ts.
  */
-export type EstadoMail = 'sin-enviar' | 'fallo' | 'enviado' | 'abierto-dudoso' | 'abierto';
+export type EstadoMail =
+  | 'sin-enviar'
+  | 'fallo'
+  | 'enviado'
+  | 'abierto-dudoso'
+  | 'abierto'
+  | 'confirmado';
 
 export function estadoMail(p: Participante): EstadoMail {
   if (!p.sentAt) return p.sendError ? 'fallo' : 'sin-enviar';
+  // La confirmación le gana a todo lo demás: si la persona avisó que le llegó,
+  // ya no importa qué dijo el pixel.
+  if (p.receivedAt) return 'confirmado';
   if (!p.openedAt) return 'enviado';
   return p.openedUnreliable ? 'abierto-dudoso' : 'abierto';
 }
@@ -53,6 +65,7 @@ export const ETIQUETA: Record<EstadoMail, string> = {
   enviado: 'Enviado',
   'abierto-dudoso': 'Señal automática',
   abierto: 'Señal de apertura',
+  confirmado: 'Le llegó',
 };
 
 export const EXPLICACION: Record<EstadoMail, string> = {
@@ -61,6 +74,7 @@ export const EXPLICACION: Record<EstadoMail, string> = {
   enviado: 'Puede que ya lo haya leído: muchos programas de correo ocultan esta señal.',
   'abierto-dudoso': 'El correo se abrió solo, probablemente una precarga del teléfono y no la persona.',
   abierto: 'El correo se abrió. Es una señal, no una confirmación.',
+  confirmado: 'Avisó desde el correo que le llegó. Es la única confirmación de verdad.',
 };
 
 export type Match = { de: string; para: string };

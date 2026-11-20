@@ -111,6 +111,22 @@ De ahí que la pantalla diga "Señal de apertura" / "Señal automática" / "Envi
 nunca "lo leyó", y lleve el cartel de que son marcas orientativas. Un tilde verde
 que dijera "leído" haría que el anfitrión le reclame a gente que sí leyó.
 
-Si en algún momento hace falta una señal de verdad: un botón en el correo
-("Ver mi amigo invisible") con el mismo token. Un clic es intención humana; una
-imagen cargada no.
+## La señal que sí vale: "marcar como recibido"
+
+Un clic es intención humana; una imagen cargada no. Por eso el correo lleva
+además un botón **«marcar como recibido»** (`amigo-invisible-recibido`, también
+pública) firmado con el mismo token, y su confirmación se muestra como
+**«Le llegó»**: la única marca de la pantalla que no es una suposición.
+
+Son **dos pasos** —el enlace abre una página chica y recién ese botón
+confirma— y no uno. Outlook Safe Links, Proofpoint y Mimecast abren todos los
+enlaces de un correo para escanearlos: si el enlace confirmara al abrirse,
+media oficina aparecería confirmada sola, que es justo el falso positivo que
+este botón vino a resolver. El GET nunca escribe; sólo el POST del formulario.
+
+La página no nombra a nadie ni dice de qué sorteo se trata: el token viaja por
+correo, pero la URL es pública igual.
+
+El pixel se queda al lado del botón, no en su lugar: responde "algo pasó con ese
+correo" cuando nadie confirmó nada. Quien no quiera ninguna señal automática
+pone `AMIGO_PIXEL=off` y deja sólo el botón.

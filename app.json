@@ -24,6 +24,9 @@
         "NSSupportsLiveActivities": true
       },
       "appleTeamId": "X77V463WTL",
+      "associatedDomains": [
+        "applinks:quien-gana.app"
+      ],
       "entitlements": {
         "com.apple.security.application-groups": [
           "group.com.mateoalvarez.quiengana"
@@ -75,7 +78,8 @@
             "deploymentTarget": "17.0"
           }
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "reactCompiler": true

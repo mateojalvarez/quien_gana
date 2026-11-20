@@ -6,6 +6,9 @@ Expo SDK 58 · Expo Router · Supabase (auth + Postgres) · local-first.
 
 ## Arrancar
 
+Lo que hay que configurar afuera (Supabase, Resend, Apple, Google, EAS y el
+dominio), paso a paso: **[docs/configuracion-externa.md](docs/configuracion-externa.md)**.
+
 ```bash
 npm install
 cp .env.example .env          # completar URL y publishable key de Supabase
@@ -31,6 +34,7 @@ supabase/functions/delete-account/   borrado de cuenta + revocación de Apple
 supabase/functions/merge-accounts/   fusión de dos cuentas (la de origen se elimina)
 supabase/functions/amigo-invisible-*/  sorteo, reenvío, ver el reparto y pixel de apertura
 supabase/propuesta-amigo-invisible.md  ⚠️ qué se promete del secreto y hasta dónde llega
+docs/configuracion-externa.md     Supabase, Resend, Apple, Google, EAS y el dominio
 ```
 
 ## Backend local (Docker)
@@ -51,7 +55,7 @@ Google en local sólo funciona en el simulador (redirect `http://127.0.0.1:54321
 
 ```bash
 cp supabase/functions/.env.example supabase/functions/.env   # generar las dos claves
-openssl rand -base64 32                                      # AMIGO_CLAVE_V1 y PIXEL_SECRET
+openssl rand -base64 32                                      # AMIGO_CLAVE_V1 y AMIGO_LINK_SECRET
 npx supabase functions serve --env-file supabase/functions/.env
 ```
 
@@ -61,6 +65,28 @@ verificado en Resend (SPF y DKIM) o los envíos se rechazan.
 
 `AMIGO_CLAVE_V1` cifra quién le regala a quién. Si se pierde, los sorteos viejos
 no se pueden reenviar nunca más.
+
+Cada correo lleva un botón **«marcar como recibido»**: el participante lo toca,
+confirma en una página chica y el anfitrión ve «Le llegó». Es la única señal
+firme — el pixel de apertura queda como pista. `AMIGO_PIXEL=off` lo apaga y
+deja sólo el botón.
+
+#### En producción: cargar los secrets
+
+Las Edge Functions no leen `.env` ni `.env.local` (eso es del cliente): los
+secrets se cargan en el proyecto. Sin ellos el sorteo contesta
+`config_incompleta` y la app muestra cuáles faltan, sin tocar el estado del
+sorteo.
+
+```bash
+npx supabase secrets set --project-ref TU_REF MAIL_PROVIDER=resend RESEND_API_KEY=re_xxx MAIL_FROM=amigoinvisible@tu-dominio.com MAIL_FROM_NAME='¿Quién gana?' AMIGO_CLAVE_V1="$(openssl rand -base64 32)" AMIGO_LINK_SECRET="$(openssl rand -base64 32)" FUNCIONES_BASE_URL=https://TU_REF.supabase.co/functions/v1
+```
+
+Guardá `AMIGO_CLAVE_V1` aparte ANTES de cargarla: Supabase no la vuelve a
+mostrar y sin ella los sorteos viejos no se reenvían más. El dominio de
+`MAIL_FROM` tiene que estar verificado en Resend (SPF y DKIM). Después,
+`npx supabase functions deploy amigo-invisible-sortear` (y `-reenviar`, `-ver`),
+más `--no-verify-jwt` en `-pixel` y `-recibido`, que los abre el correo.
 
 Al crear un sorteo el anfitrión elige dos cosas, y **sólo ahí**: si participa, y
 si puede ver el reparto. Lo segundo queda congelado (`reveal_to_host` no está

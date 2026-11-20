@@ -59,12 +59,13 @@ export async function descifrarDestino(
 }
 
 /**
- * Token del pixel: determinístico, así reenviar un mail no toca la base y la
- * señal de apertura sigue funcionando con el mismo token.
+ * Token público del participante: firma el pixel y el enlace de confirmación.
+ * Determinístico, así reenviar un mail no toca la base y los enlaces del
+ * correo viejo siguen valiendo.
  */
-export async function tokenPixel(drawId: string, memberId: string): Promise<string> {
-  const secret = Deno.env.get('PIXEL_SECRET');
-  if (!secret) throw new Error('falta el secret PIXEL_SECRET');
+export async function tokenMiembro(drawId: string, memberId: string): Promise<string> {
+  const secret = Deno.env.get('AMIGO_LINK_SECRET');
+  if (!secret) throw new Error('falta el secret AMIGO_LINK_SECRET');
   const key = await crypto.subtle.importKey(
     'raw',
     deB64(secret),
@@ -76,7 +77,7 @@ export async function tokenPixel(drawId: string, memberId: string): Promise<stri
   return aB64url(new Uint8Array(mac));
 }
 
-/** En la base queda sólo esto: con un dump no se fabrican aperturas falsas. */
+/** En la base queda sólo esto: con un dump no se fabrican confirmaciones falsas. */
 export async function hashToken(token: string): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token)));
 }

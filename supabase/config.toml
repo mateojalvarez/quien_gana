@@ -461,6 +461,12 @@ verify_jwt = true
 enabled = true
 verify_jwt = false
 
+# El botón "marcar como recibido" del mail: lo abre el navegador del
+# participante, que no manda ningún header de auth.
+[functions.amigo-invisible-recibido]
+enabled = true
+verify_jwt = false
+
 [functions.amigo-invisible-ver]
 enabled = true
 verify_jwt = true

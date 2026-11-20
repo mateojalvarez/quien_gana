@@ -16,6 +16,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 import { cors, json } from '../_compartido/cors.ts';
+import { secretsQueFaltan } from '../_compartido/amigo/config.ts';
 import { cifrarDestino } from '../_compartido/amigo/cripto.ts';
 import { dormir, mandarUno, RESPIRO_MS, type Miembro } from '../_compartido/amigo/envio.ts';
 import { abrirCartero } from '../_compartido/amigo/mail.ts';
@@ -47,6 +48,11 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const drawId: string | undefined = body?.drawId;
   if (!drawId) return json({ error: 'falta_draw_id' }, 400);
+
+  // Antes del candado: si falta una clave, el sorteo tiene que seguir en
+  // 'draft' para poder intentarlo de nuevo con el proyecto bien configurado.
+  const faltan = secretsQueFaltan();
+  if (faltan.length > 0) return json({ error: 'config_incompleta', faltan }, 500);
 
   // Candado atómico contra el doble toque: el UPDATE condicional es lo que
   // garantiza que dos pedidos en paralelo no sorteen dos veces y manden dos
