@@ -118,7 +118,7 @@ además un botón **«marcar como recibido»**, firmado con el mismo token, y su
 confirmación se muestra como **«Le llegó»**: la única marca de la pantalla que
 no es una suposición.
 
-El botón abre una página del sitio propio (`sitio/recibido/index.html`) que
+El botón abre una página del sitio propio (`quien-gana-web`, `app/recibido/`) que
 postea a `amigo-invisible-recibido`, una función pública que sólo contesta
 JSON. La página no sale de la función porque el gateway de Supabase degrada a
 `text/plain` cualquier HTML que devuelva una Edge Function, para que nadie use

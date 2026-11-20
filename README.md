@@ -35,7 +35,6 @@ supabase/functions/merge-accounts/   fusión de dos cuentas (la de origen se eli
 supabase/functions/amigo-invisible-*/  sorteo, reenvío, ver el reparto y pixel de apertura
 supabase/propuesta-amigo-invisible.md  ⚠️ qué se promete del secreto y hasta dónde llega
 docs/configuracion-externa.md     Supabase, Resend, Apple, Google, EAS y el dominio
-sitio/                            Las páginas de quien-gana.app (se suben a mano)
 ```
 
 ## Backend local (Docker)
@@ -72,10 +71,10 @@ confirma en <https://quien-gana.app/recibido> y el anfitrión ve «Le llegó». 
 la única señal firme — el pixel de apertura queda como pista. `AMIGO_PIXEL=off`
 lo apaga y deja sólo el botón.
 
-Esa página es estática y **se sube a mano a Cloudflare**: está en
-[sitio/](sitio/README.md), no se despliega con el resto. No puede ser la Edge
-Function directamente porque el gateway de Supabase degrada a `text/plain`
-cualquier HTML que devuelva una función.
+Esa página no está en este repo: vive en **quien-gana-web** (`app/recibido/`),
+que es el sitio de quien-gana.app. No puede ser la Edge Function directamente
+porque el gateway de Supabase degrada a `text/plain` cualquier HTML que
+devuelva una función.
 
 #### En producción: cargar los secrets
 

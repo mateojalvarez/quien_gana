@@ -5,8 +5,8 @@
 // cargada no.
 //
 // Acá no hay página: sólo POST y JSON. La página es
-// https://quien-gana.app/recibido (vive en sitio/recibido/index.html) y es la
-// que postea acá. No es un capricho: el gateway de Supabase le reescribe el
+// https://quien-gana.app/recibido —está en el repo del sitio, quien-gana-web,
+// en app/recibido/— y es la que postea acá. No es un capricho: el gateway de Supabase le reescribe el
 // Content-Type a text/plain y le agrega nosniff a cualquier respuesta HTML de
 // una Edge Function —a propósito, para que nadie use su dominio para armar un
 // phishing— así que el navegador mostraría el código fuente. De paso, el

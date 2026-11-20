@@ -3,8 +3,8 @@
 // El pixel es una función (lo pide el cliente de correo) y el botón de "marcar
 // como recibido" es una página del sitio propio, no la función: el gateway de
 // Supabase degrada a text/plain cualquier HTML que devuelva una Edge Function,
-// así que la página vive en quien-gana.app y postea a la función. Ver
-// sitio/README.md.
+// así que la página vive en quien-gana.app y postea a la función. La página
+// está en el repo del sitio (quien-gana-web), en app/recibido/.
 //
 //   FUNCIONES_BASE_URL=https://TU_REF.supabase.co/functions/v1
 //   SITIO_BASE_URL=https://quien-gana.app        (opcional, ese es el default)
