@@ -114,12 +114,18 @@ que dijera "leído" haría que el anfitrión le reclame a gente que sí leyó.
 ## La señal que sí vale: "marcar como recibido"
 
 Un clic es intención humana; una imagen cargada no. Por eso el correo lleva
-además un botón **«marcar como recibido»** (`amigo-invisible-recibido`, también
-pública) firmado con el mismo token, y su confirmación se muestra como
-**«Le llegó»**: la única marca de la pantalla que no es una suposición.
+además un botón **«marcar como recibido»**, firmado con el mismo token, y su
+confirmación se muestra como **«Le llegó»**: la única marca de la pantalla que
+no es una suposición.
 
-Son **dos pasos** —el enlace abre una página chica y recién ese botón
-confirma— y no uno. Outlook Safe Links, Proofpoint y Mimecast abren todos los
+El botón abre una página del sitio propio (`sitio/recibido/index.html`) que
+postea a `amigo-invisible-recibido`, una función pública que sólo contesta
+JSON. La página no sale de la función porque el gateway de Supabase degrada a
+`text/plain` cualquier HTML que devuelva una Edge Function, para que nadie use
+su dominio para armar un phishing.
+
+Son **dos pasos** —el enlace abre la página y recién ese botón confirma— y no
+uno. Outlook Safe Links, Proofpoint y Mimecast abren todos los
 enlaces de un correo para escanearlos: si el enlace confirmara al abrirse,
 media oficina aparecería confirmada sola, que es justo el falso positivo que
 este botón vino a resolver. El GET nunca escribe; sólo el POST del formulario.

@@ -91,6 +91,12 @@ pixel de apertura y el botón «marcar como recibido». Si falta, el correo sale
 sin ninguno de los dos y el anfitrión nunca se entera de nada. `AMIGO_PIXEL=off`
 apaga el pixel y deja sólo el botón.
 
+`SITIO_BASE_URL` (default `https://quien-gana.app`) es el dominio donde está la
+página del botón, que es además el único origen que la función acepta por CORS.
+La página se sube a mano al sitio: ver `sitio/README.md`. **No se puede servir
+el HTML desde la función**: el gateway de Supabase le reescribe el
+`Content-Type` a `text/plain` y el navegador muestra el código fuente.
+
 Después, desplegar. Las dos funciones que abre el correo van con
 `--no-verify-jwt`, porque ni el cliente de correo ni el navegador del
 participante mandan headers de auth:
