@@ -32,6 +32,39 @@ export type Turn = {
   ended: 'correcto' | 'nadie' | null;
 };
 
+/** Reglas de puntaje que fija el anfitrión. */
+export type Rules = {
+  /** Lo que suma acertar. */
+  acierto: number;
+  /** Lo que resta fallar (0 = no resta). */
+  fallo: number;
+  /** null = rondas ilimitadas. */
+  rondas: number | null;
+};
+
+/** Puntos por id de jugador. */
+export type Scores = Record<string, number>;
+
+/** Partido definido: por diferencia imposible de remontar o por llegar al final. */
+export type Anuncio = {
+  /** Más de uno = empate al final. */
+  ganadores: string[];
+  motivo: 'matematico' | 'final';
+  /** El anfitrión cerró la partida: todos ven la planilla final. */
+  terminado: boolean;
+};
+
+/** Todo lo que el anfitrión difunde del marcador, de una sola vez. */
+export type Marcador = {
+  rules: Rules;
+  scores: Scores;
+  /** Rondas cerradas (alguien acertó o nadie acertó). */
+  jugadas: number;
+  /** Último cambio de puntos por jugador, para la flechita de la planilla. */
+  ultimo: Scores;
+  anuncio: Anuncio | null;
+};
+
 export type Msg =
   | { type: 'ping'; from: string; id: string }
   | { type: 'pong'; to: string; id: string; tHost: number }
@@ -39,4 +72,5 @@ export type Msg =
   | { type: 'tap'; roundId: string; playerId: string; t: number }
   | { type: 'result'; result: RoundResult }
   | { type: 'turn'; turn: Turn }
+  | { type: 'marcador'; marcador: Marcador }
   | { type: 'end' };

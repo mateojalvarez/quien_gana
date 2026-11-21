@@ -85,9 +85,28 @@ export function estrellasDe(ovr: number, umbrales: Umbral[]): number {
 
 export const ESTRELLAS_POSIBLES = CORTES.map(([e]) => e);
 
-export function filtrarCatalogo(equipos: EquipoFC[], filtro: FiltroEquipos): EquipoFC[] {
-  if (filtro === 'todos') return equipos;
-  return equipos.filter((e) => (filtro === 'selecciones' ? e.esSeleccion : !e.esSeleccion));
+/**
+ * `ligas` sólo recorta clubes: las selecciones no tienen liga real, así que
+ * con "Todos" siguen entrando aunque se elijan ligas.
+ */
+export function filtrarCatalogo(equipos: EquipoFC[], filtro: FiltroEquipos, ligas?: readonly string[] | null): EquipoFC[] {
+  const conLiga = ligas ? new Set(ligas) : null;
+  return equipos.filter((e) => {
+    if (filtro === 'selecciones' && !e.esSeleccion) return false;
+    if (filtro === 'clubes' && e.esSeleccion) return false;
+    if (conLiga && !e.esSeleccion && !conLiga.has(e.liga)) return false;
+    return true;
+  });
+}
+
+/** Ligas de clubes del catálogo con su cantidad de equipos: Argentina primero, después las más grandes. */
+export function ligasDelCatalogo(equipos: EquipoFC[]): { liga: string; equipos: number }[] {
+  const cuenta = new Map<string, number>();
+  for (const e of equipos) if (!e.esSeleccion) cuenta.set(e.liga, (cuenta.get(e.liga) ?? 0) + 1);
+  const peso = (l: string) => (l.startsWith('Argentina') ? 0 : l.startsWith('CONMEBOL') ? 1 : 2);
+  return [...cuenta]
+    .map(([liga, n]) => ({ liga, equipos: n }))
+    .sort((a, b) => peso(a.liga) - peso(b.liga) || b.equipos - a.equipos || a.liga.localeCompare(b.liga));
 }
 
 /**
@@ -129,6 +148,107 @@ export function matchear<T>(participantes: string[], equipos: T[], rng: Rng = Ma
   const ps = mezclar(participantes, rng);
   const es = mezclar(equipos, rng);
   return ps.slice(0, es.length).map((participante, i) => ({ participante, equipo: es[i] }));
+}
+
+// ─── Parejas ────────────────────────────────────────────────────────────────
+
+export type ReglasParejas = {
+  /** Van juntos sí o sí. */
+  fijas: [string, string][];
+  /** No pueden quedar juntos. */
+  prohibidas: [string, string][];
+  /** Los fuertes: cada pareja lleva uno, mientras alcancen los no-cabeza. */
+  cabezas: string[];
+};
+
+export const SIN_REGLAS: ReglasParejas = { fijas: [], prohibidas: [], cabezas: [] };
+
+const clavePar = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+/**
+ * Arma parejas al azar respetando las reglas. Con cantidad impar queda uno
+ * `suelto`. Devuelve null si las reglas no tienen solución (o si la búsqueda
+ * se pasa de un tope: con 64 personas y reglas absurdas no vale colgar la app).
+ *
+ * Cabezas: se mezclan cabeza con no-cabeza todo lo posible; si sobran de un
+ * lado, esos se juntan entre sí.
+ */
+export function sortearParejas(
+  ids: readonly string[],
+  reglas: ReglasParejas = SIN_REGLAS,
+  rng: Rng = Math.random,
+): { parejas: [string, string][]; suelto: string | null } | null {
+  const presentes = new Set(ids);
+  const usados = new Set<string>();
+  const fijas: [string, string][] = [];
+  for (const [a, b] of reglas.fijas) {
+    if (a === b || !presentes.has(a) || !presentes.has(b) || usados.has(a) || usados.has(b)) continue;
+    fijas.push([a, b]);
+    usados.add(a).add(b);
+  }
+  const prohibidas = new Set(reglas.prohibidas.map(([a, b]) => clavePar(a, b)));
+  if (fijas.some(([a, b]) => prohibidas.has(clavePar(a, b)))) return null;
+
+  const cabezas = new Set(reglas.cabezas);
+  const resto = mezclar(
+    ids.filter((id) => !usados.has(id)),
+    rng,
+  );
+  const libres = new Set(resto);
+  const parejas: [string, string][] = [];
+  let suelto: string | null = null;
+  let pasos = 0;
+  const TOPE = 50_000;
+
+  const contar = () => {
+    let cab = 0;
+    for (const id of libres) if (cabezas.has(id)) cab++;
+    return { cab, non: libres.size - cab };
+  };
+
+  const buscar = (): boolean => {
+    if (++pasos > TOPE) return false;
+    if (libres.size === 0) return true;
+    // El más difícil primero: el que menos compañeros posibles tiene.
+    const { cab, non } = contar();
+    const vale = (x: string, y: string) => {
+      if (prohibidas.has(clavePar(x, y))) return false;
+      if (cabezas.size === 0) return true;
+      const cx = cabezas.has(x);
+      const cy = cabezas.has(y);
+      if (cx !== cy) return true;
+      return cx ? cab > non : non > cab;
+    };
+    let x: string | null = null;
+    let opciones: string[] = [];
+    for (const id of libres) {
+      const ops = [...libres].filter((y) => y !== id && vale(id, y));
+      if (x === null || ops.length < opciones.length) {
+        x = id;
+        opciones = ops;
+      }
+    }
+    if (x === null) return true;
+    libres.delete(x);
+    for (const y of mezclar(opciones, rng)) {
+      libres.delete(y);
+      parejas.push([x, y]);
+      if (buscar()) return true;
+      parejas.pop();
+      libres.add(y);
+    }
+    // Impar: uno se queda sin pareja (sólo uno).
+    if (suelto === null && libres.size % 2 === 0) {
+      suelto = x;
+      if (buscar()) return true;
+      suelto = null;
+    }
+    libres.add(x);
+    return false;
+  };
+
+  if (!buscar()) return null;
+  return { parejas: [...fijas, ...parejas], suelto };
 }
 
 // ─── Todos contra todos ─────────────────────────────────────────────────────

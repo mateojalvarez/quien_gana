@@ -188,7 +188,16 @@ export function Screen({
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top + space.sm }}>
       {(title || back || right) && (
         <View style={[pad, { paddingBottom: space.md }]}>
-          {decor}
+          {/* Lo absoluto se mide desde el borde del padding, no del contenido: sin esta
+              caja, el `right: -4` de cada arcilla la sacaba de la pantalla y se cortaba. */}
+          {decor ? (
+            <View
+              pointerEvents="none"
+              style={{ position: 'absolute', top: 0, bottom: 0, left: padded ? space.xl : 0, right: padded ? space.xl : 0, zIndex: 1 }}
+            >
+              {decor}
+            </View>
+          ) : null}
           {/* Sin volver ni acción a la derecha la fila sobra: en una pestaña dejaba 44px muertos. */}
           {back || right ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: touch }}>

@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import QRCode from 'react-native-qrcode-svg';
 
+import { AnuncioGanador, Planilla, ReglasPulsador } from '@/components/pulsador-parts';
+import { Hoja } from '@/components/torneo-parts';
+
 import { Avatar, Body, Button, Card, Display, Label, Row, Screen, Segmented, Spinner, Title, Toggle } from '@/components/ui';
 import { marginMs } from '@/features/pulsador/logic';
 import type { Mode } from '@/features/pulsador/types';
@@ -64,7 +67,8 @@ export const salaUrl = (code: string) => `https://quien-gana.app/p/${code}`;
 function Lobby({ room, asHost, code }: { room: Room; asHost: boolean; code: string }) {
   const { c, scheme } = useTheme();
   const [mode, setMode] = useState<Mode>('libre');
-  const [visible, setVisible] = useState(false);
+  // Prendido de entrada: lo normal es que estén todos en el mismo wifi.
+  const [visible, setVisible] = useState(true);
   const [avisoRed, setAvisoRed] = useState<string | null>(null);
   const q = quality(room.sync);
 
@@ -185,6 +189,14 @@ function Lobby({ room, asHost, code }: { room: Room; asHost: boolean; code: stri
         </>
       ) : null}
 
+      <Label style={{ marginTop: space.xxl, marginBottom: space.md }}>Reglas</Label>
+      <Card style={{ padding: space.lg }}>
+        <ReglasPulsador rules={room.marcador.rules} onChange={asHost ? room.setRules : undefined} />
+      </Card>
+      {!asHost ? (
+        <Label style={{ marginTop: space.sm }}>Las define el anfitrión.</Label>
+      ) : null}
+
       <Card style={{ marginTop: space.xxl, padding: space.xl, gap: space.sm }}>
         <Row style={{ justifyContent: 'space-between' }}>
           <Label color={colorQ}>Sincronización</Label>
@@ -205,6 +217,7 @@ function Arena({ room, asHost }: { room: Room; asHost: boolean }) {
   // Ronda cuya señal ya sonó. Guardar el id y no un booleano evita que el ¡YA!
   // de la ronda anterior se arrastre a la siguiente.
   const [sonoEn, setSonoEn] = useState<string | null>(null);
+  const [verTabla, setVerTabla] = useState(false);
 
   // El ¡YA! se agenda en hora local, ya corregida contra el anfitrión.
   useEffect(() => {
@@ -298,17 +311,44 @@ function Arena({ room, asHost }: { room: Room; asHost: boolean }) {
       ) : null}
 
       {result && turn?.ended ? (
-        <Card style={{ marginHorizontal: space.lg, marginTop: space.sm, padding: space.lg }}>
-          <Label>{turn.ended === 'correcto' ? 'Ronda ganada' : 'Nadie acertó'}</Label>
+        <Card style={{ marginHorizontal: space.lg, marginTop: space.sm, padding: space.lg, gap: space.sm }}>
+          <Title style={{ fontSize: 18 }}>
+            {turn.ended === 'correcto'
+              ? `Ronda para ${result.queue[turn.index]?.playerIds.map(name).join(' y ') ?? '—'}`
+              : 'Nadie acertó'}
+          </Title>
+          <Planilla players={players} marcador={room.marcador} meId={myId} compacta />
         </Card>
       ) : null}
 
-      <Barra room={room} asHost={asHost} />
+      <Barra room={room} asHost={asHost} onTabla={() => setVerTabla(true)} />
+
+      <Hoja
+        visible={verTabla}
+        onCerrar={() => setVerTabla(false)}
+        titulo="Resultados parciales"
+        mensaje={asHost ? 'Podés cambiar las reglas en cualquier momento.' : undefined}
+      >
+        <Planilla players={players} marcador={room.marcador} meId={myId} />
+        <ReglasPulsador rules={room.marcador.rules} onChange={asHost ? room.setRules : undefined} />
+        <Button label="Volver al juego" variant="outline" onPress={() => setVerTabla(false)} />
+      </Hoja>
+
+      <AnuncioGanador
+        players={players}
+        marcador={room.marcador}
+        meId={myId}
+        asHost={asHost}
+        onSeguir={room.seguir}
+        onTerminar={room.terminar}
+        onRevancha={room.revancha}
+        onSalir={() => router.back()}
+      />
     </View>
   );
 }
 
-function Barra({ room, asHost }: { room: Room; asHost: boolean }) {
+function Barra({ room, asHost, onTabla }: { room: Room; asHost: boolean; onTabla: () => void }) {
   const { c } = useTheme();
   const { result, turn, round } = room;
   const decidiendo = asHost && result && turn && !turn.ended && result.queue.length > 0;
@@ -367,7 +407,11 @@ function Barra({ room, asHost }: { room: Room; asHost: boolean }) {
         </Label>
       )}
 
-      <View style={{ width: 36 }} />
+      <Pressable accessibilityRole="button" accessibilityLabel="Ver resultados parciales" hitSlop={10} onPress={onTabla}>
+        <Label color={c.inverseInk} style={{ fontSize: 15 }}>
+          Tabla
+        </Label>
+      </Pressable>
     </Row>
   );
 }

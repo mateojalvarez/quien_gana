@@ -10,7 +10,7 @@
     "@expo-google-fonts/space-grotesk": "^0.4.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.119.0",
-    "expo": "~58.0.25",
+    "expo": "~58.0.26",
     "expo-apple-authentication": "~58.0.3",
     "expo-audio": "~58.0.12",
     "expo-build-properties": "~58.0.12",
@@ -25,11 +25,11 @@
     "expo-keep-awake": "~58.0.4",
     "expo-linking": "~58.0.17",
     "expo-notifications": "~58.1.9",
-    "expo-router": "~58.0.31",
+    "expo-router": "~58.0.32",
     "expo-splash-screen": "~58.0.14",
     "expo-status-bar": "~58.0.5",
     "expo-system-ui": "~58.0.7",
-    "expo-web-browser": "~58.0.8",
+    "expo-web-browser": "~58.1.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
@@ -69,5 +69,13 @@
     "env:cloud": "rm -f .env.local && echo \"✔ usando Supabase en la nube (.env)\"",
     "dev:local": "npm run env:local && expo start --dev-client -c"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "@bacons/xcode": {
+      "@expo/plist": "^0.10.2"
+    },
+    "uuid": "^11.1.1",
+    "glob@>=9 <14.0.2": "^14.0.6",
+    "minimatch@>=7 <11.0.1": "^11.0.9"
+  }
 }

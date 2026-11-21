@@ -12,6 +12,9 @@ import {
   crearDesempate,
   empatesPendientes,
   estrellasDe,
+  filtrarCatalogo,
+  ligasDelCatalogo,
+  sortearParejas,
   iniciar,
   matchear,
   ordenSiembra,
@@ -413,5 +416,70 @@ describe('sorteo de cruces grupos → playoff', () => {
     const jugado = cargarResultado(otro, p.id, 1, 0);
     assert.ok(!puedeResortearCruces(jugado));
     assert.equal(resortearCruces(jugado), jugado);
+  });
+});
+
+// ─── Ligas ──────────────────────────────────────────────────────────────────
+
+describe('filtrarCatalogo con ligas', () => {
+  const eq = (id: string, liga: string, esSeleccion = false): EquipoFC => ({
+    id, nombre: id, liga, pais: '', ovr: 80, ata: 80, med: 80, def: 80, esSeleccion,
+  });
+  const cat = [eq('boca', 'Argentina Primera División'), eq('city', 'England Premier League'), eq('arg', 'Selecciones', true)];
+
+  it('sin ligas no recorta', () => {
+    assert.deepEqual(filtrarCatalogo(cat, 'clubes').map((e) => e.id), ['boca', 'city']);
+  });
+  it('recorta clubes por liga', () => {
+    assert.deepEqual(filtrarCatalogo(cat, 'clubes', ['England Premier League']).map((e) => e.id), ['city']);
+  });
+  it('con "todos" las selecciones siguen entrando', () => {
+    assert.deepEqual(filtrarCatalogo(cat, 'todos', ['Argentina Primera División']).map((e) => e.id), ['boca', 'arg']);
+  });
+  it('lista las ligas con Argentina primero y sin selecciones', () => {
+    assert.deepEqual(ligasDelCatalogo(cat).map((l) => l.liga), ['Argentina Primera División', 'England Premier League']);
+  });
+});
+
+// ─── Parejas ────────────────────────────────────────────────────────────────
+
+describe('sortearParejas', () => {
+  const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+  const juntos = (ps: [string, string][], x: string, y: string) => ps.some(([p, q]) => (p === x && q === y) || (p === y && q === x));
+
+  it('sin reglas arma todas las parejas', () => {
+    const r = sortearParejas(ids)!;
+    assert.equal(r.parejas.length, 3);
+    assert.equal(r.suelto, null);
+    assert.equal(new Set(r.parejas.flat()).size, 6);
+  });
+  it('impar deja uno suelto', () => {
+    const r = sortearParejas(['a', 'b', 'c'])!;
+    assert.equal(r.parejas.length, 1);
+    assert.ok(r.suelto);
+  });
+  it('respeta fijas y prohibidas', () => {
+    for (let i = 0; i < 50; i++) {
+      const r = sortearParejas(ids, { fijas: [['a', 'b']], prohibidas: [['c', 'd'], ['c', 'e']], cabezas: [] })!;
+      assert.ok(juntos(r.parejas, 'a', 'b'));
+      assert.ok(!juntos(r.parejas, 'c', 'd'));
+      assert.ok(!juntos(r.parejas, 'c', 'e'));
+      assert.ok(juntos(r.parejas, 'c', 'f'));
+    }
+  });
+  it('cabezas van con no-cabezas', () => {
+    for (let i = 0; i < 50; i++) {
+      const r = sortearParejas(ids, { fijas: [], prohibidas: [], cabezas: ['a', 'b', 'c'] })!;
+      for (const [x, y] of r.parejas) assert.notEqual(['a', 'b', 'c'].includes(x), ['a', 'b', 'c'].includes(y));
+    }
+  });
+  it('si sobran cabezas, se juntan sólo las que sobran', () => {
+    const r = sortearParejas(ids, { fijas: [], prohibidas: [], cabezas: ['a', 'b', 'c', 'd'] })!;
+    const mixtas = r.parejas.filter(([x, y]) => ['a', 'b', 'c', 'd'].includes(x) !== ['a', 'b', 'c', 'd'].includes(y));
+    assert.equal(mixtas.length, 2);
+  });
+  it('imposible devuelve null', () => {
+    assert.equal(sortearParejas(['a', 'b'], { fijas: [], prohibidas: [['a', 'b']], cabezas: [] }), null);
+    assert.equal(sortearParejas(['a', 'b'], { fijas: [['a', 'b']], prohibidas: [['b', 'a']], cabezas: [] }), null);
   });
 });

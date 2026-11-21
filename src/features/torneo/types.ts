@@ -112,6 +112,8 @@ export type DatosTorneo = {
   usaEquipos: boolean;
   origenEquipos: OrigenEquipos;
   filtroEquipos: FiltroEquipos;
+  /** Ligas de las que sale el sorteo de clubes. null/ausente = todas. */
+  ligasEquipos?: string[] | null;
   /** Equipos cargados a mano, por bombo. El match con los participantes es al azar. */
   equiposManuales?: EquipoAsignado[][];
   formato: Formato;

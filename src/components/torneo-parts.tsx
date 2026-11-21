@@ -343,10 +343,16 @@ export function TotalPartidos({ total, detalle }: { total: number; detalle: { et
   return (
     <View style={{ borderRadius: radius.card, backgroundColor: c.inverseBg, padding: space.xl, gap: space.md }}>
       <Row style={{ gap: space.md, alignItems: 'flex-end' }}>
-        <Text style={{ fontFamily: fonts.black, fontSize: 56, lineHeight: 58, color: c.inverseInk, fontVariant: ['tabular-nums'] }}>
+        {/* Con tres o cuatro cifras el número no entraba: se achica en vez de cortarse. */}
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.5}
+          style={{ fontFamily: fonts.black, fontSize: 56, lineHeight: 58, color: c.inverseInk, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '62%' }}
+        >
           {total}
         </Text>
-        <Label color={c.inverseInk} style={{ fontSize: 17, marginBottom: 8 }}>
+        <Label color={c.inverseInk} style={{ fontSize: 17, marginBottom: 8, flex: 1 }}>
           {total === 1 ? 'partido en total' : 'partidos en total'}
         </Label>
       </Row>

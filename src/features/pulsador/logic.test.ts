@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { marginMs, rank, resolveRound, TIE_MS, type Tap } from './logic.ts';
+import { aplicarTurno, claveAnuncio, definido, marginMs, rank, ranking, REGLAS_DEFAULT, resolveRound, TIE_MS, type Tap } from './logic.ts';
 
 const T = (...pares: [string, number][]): Tap[] => pares.map(([playerId, t]) => ({ playerId, t }));
 /** La cola como texto, para poder compararla de un vistazo: 'a|b c' = a, después b y c empatados. */
@@ -100,5 +100,40 @@ describe('ventaja del ganador', () => {
   it('con un solo escalón no hay ventaja que mostrar', () => {
     assert.equal(marginMs(rank(T(['teo', 0], ['lu', 5]))), null);
     assert.equal(marginMs([]), null);
+  });
+});
+
+describe('puntaje', () => {
+  const reglas = { acierto: 2, fallo: 1, rondas: 5 };
+
+  it('acertar suma y fallar resta, a todos los del escalón', () => {
+    const a = aplicarTurno({}, ['x'], true, reglas);
+    assert.deepEqual(a.scores, { x: 2 });
+    const b = aplicarTurno(a.scores, ['x', 'y'], false, reglas);
+    assert.deepEqual(b.scores, { x: 1, y: -1 });
+    assert.deepEqual(b.delta, { x: -1, y: -1 });
+  });
+
+  it('el ranking va de más a menos y cuenta a los que no sumaron', () => {
+    assert.deepEqual(ranking({ b: 3 }, ['a', 'b']).map((r) => r.id), ['b', 'a']);
+  });
+
+  it('sin límite de rondas nunca hay ganador', () => {
+    assert.equal(definido({ a: 100 }, ['a', 'b'], REGLAS_DEFAULT, 50), null);
+  });
+
+  it('ganador matemático cuando la ventaja supera lo que queda por remontar', () => {
+    // Quedan 2 rondas, cada una puede mover 3 puntos: 6. Con 7 está definido.
+    assert.equal(definido({ a: 6, b: 0 }, ['a', 'b'], reglas, 3), null);
+    assert.deepEqual(definido({ a: 7, b: 0 }, ['a', 'b'], reglas, 3), { ganadores: ['a'], motivo: 'matematico' });
+  });
+
+  it('al final gana el que más tiene, o empatan', () => {
+    assert.deepEqual(definido({ a: 1, b: 0 }, ['a', 'b'], reglas, 5), { ganadores: ['a'], motivo: 'final' });
+    assert.deepEqual(definido({ a: 2, b: 2 }, ['a', 'b', 'c'], reglas, 5)?.ganadores, ['a', 'b']);
+  });
+
+  it('la clave del anuncio no depende del orden', () => {
+    assert.equal(claveAnuncio({ ganadores: ['b', 'a'], motivo: 'final' }), claveAnuncio({ ganadores: ['a', 'b'], motivo: 'final' }));
   });
 });

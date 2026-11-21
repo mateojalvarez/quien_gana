@@ -2,8 +2,8 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
-import { COLLECT_MS, resolveRound } from '@/features/pulsador/logic';
-import type { Mode, Msg, Player, RoundResult, Tap, Turn } from '@/features/pulsador/types';
+import { aplicarTurno, claveAnuncio, COLLECT_MS, definido, MARCADOR_INICIAL, ranking, resolveRound } from '@/features/pulsador/logic';
+import type { Marcador, Mode, Msg, Player, RoundResult, Rules, Tap, Turn } from '@/features/pulsador/types';
 import { ClockSync, SAMPLE_GOAL, type Estimate } from './clock-sync';
 import { uid } from './id';
 import { supabase } from './supabase';
@@ -59,6 +59,15 @@ export type Room = {
   arm: (mode: Mode) => void;
   nextTurn: (ok: boolean) => void;
   endRoom: () => void;
+  /** Puntaje, reglas y anuncio de ganador. Lo decide el anfitrión y lo copian todos. */
+  marcador: Marcador;
+  setRules: (r: Rules) => void;
+  /** El anfitrión cierra el anuncio y se sigue sumando. */
+  seguir: () => void;
+  /** El anfitrión da la partida por terminada: todos ven la planilla final. */
+  terminar: () => void;
+  /** Puntos a cero, mismas reglas. */
+  revancha: () => void;
 };
 
 export function useRoom({ code, name, asHost }: { code: string; name: string; asHost: boolean }): Room {
@@ -73,6 +82,7 @@ export function useRoom({ code, name, asHost }: { code: string; name: string; as
   const [result, setResult] = useState<RoundResult | null>(null);
   const [turn, setTurn] = useState<Turn | null>(null);
   const [myTapAt, setMyTapAt] = useState<number | null>(null);
+  const [marcador, setMarcador] = useState<Marcador>(MARCADOR_INICIAL);
 
   const chan = useRef<RealtimeChannel | null>(null);
   const clock = useRef<ClockSync | null>(null);
@@ -83,6 +93,9 @@ export function useRoom({ code, name, asHost }: { code: string; name: string; as
   const playersRef = useRef<Player[]>([]);
   const taps = useRef<Tap[]>([]);
   const collect = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const marcadorRef = useRef<Marcador>(MARCADOR_INICIAL);
+  /** Anuncio que el anfitrión ya vio y eligió seguir: no se repite. */
+  const visto = useRef<string | null>(null);
 
   const send = useCallback((msg: Msg) => {
     chan.current?.send({ type: 'broadcast', event: 'msg', payload: msg });
@@ -101,6 +114,36 @@ export function useRoom({ code, name, asHost }: { code: string; name: string; as
     setTurn(t);
   }, []);
 
+  /* ── Marcador (sólo el anfitrión escribe) ─────────────────────────── */
+
+  const envioMarcador = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /**
+   * `demorar`: para los steppers de reglas. Tocar rápido manda una ráfaga que
+   * Realtime recorta, y si se pierde el último mensaje los invitados se quedan
+   * con un valor viejo. Se espera a que el anfitrión deje de tocar.
+   */
+  const putMarcador = useCallback(
+    (m: Marcador, demorar = false) => {
+      marcadorRef.current = m;
+      setMarcador(m);
+      if (!asHost) return;
+      clearTimeout(envioMarcador.current);
+      const enviar = () => send({ type: 'marcador', marcador: marcadorRef.current });
+      if (demorar) envioMarcador.current = setTimeout(enviar, 300);
+      else enviar();
+    },
+    [asHost, send],
+  );
+
+  /** Recalcula si la partida quedó definida y arma el anuncio. */
+  const conAnuncio = useCallback((m: Marcador): Marcador => {
+    if (m.anuncio?.terminado) return m;
+    const ids = playersRef.current.map((p) => p.id);
+    const d = definido(m.scores, ids, m.rules, m.jugadas);
+    if (!d || claveAnuncio(d) === visto.current) return { ...m, anuncio: null };
+    return { ...m, anuncio: { ...d, terminado: false } };
+  }, []);
+
   /* ── Árbitro: junta los toques y resuelve ─────────────────────────── */
 
   const finish = useCallback(() => {
@@ -114,7 +157,12 @@ export function useRoom({ code, name, asHost }: { code: string; name: string; as
     putTurn(t);
     send({ type: 'result', result: res });
     send({ type: 'turn', turn: t });
-  }, [putResult, putTurn, send]);
+    // Nadie tocó: la ronda igual cuenta.
+    if (t.ended) {
+      const m = marcadorRef.current;
+      putMarcador(conAnuncio({ ...m, jugadas: m.jugadas + 1 }));
+    }
+  }, [conAnuncio, putMarcador, putResult, putTurn, send]);
 
   const collectTap = useCallback(
     (tap: Tap & { roundId: string }) => {
@@ -167,8 +215,11 @@ export function useRoom({ code, name, asHost }: { code: string; name: string; as
       const list = [...seen.values()]
         .sort((a, b) => a.joinedAt - b.joinedAt || a.id.localeCompare(b.id))
         .map((p, slot) => ({ ...p, slot }));
+      const antes = playersRef.current.length;
       playersRef.current = list;
       if (alive) setPlayers(list);
+      // El que llega tarde no vio el marcador: se lo reenvía el anfitrión.
+      if (asHost && list.length > antes) send({ type: 'marcador', marcador: marcadorRef.current });
     });
 
     ch.on('broadcast', { event: 'msg' }, ({ payload }) => {
@@ -201,6 +252,12 @@ export function useRoom({ code, name, asHost }: { code: string; name: string; as
           return;
         case 'turn':
           if (!asHost) putTurn(msg.turn);
+          return;
+        case 'marcador':
+          if (!asHost) {
+            marcadorRef.current = msg.marcador;
+            setMarcador(msg.marcador);
+          }
           return;
         case 'end':
           if (!asHost && alive) setStatus('sin-sala');
@@ -251,6 +308,7 @@ export function useRoom({ code, name, asHost }: { code: string; name: string; as
       alive = false;
       clearTimeout(grace);
       clearTimeout(collect.current);
+      clearTimeout(envioMarcador.current);
       timers.forEach(clearInterval);
       app.remove();
       if (asHost) ch.send({ type: 'broadcast', event: 'msg', payload: { type: 'end' } satisfies Msg });
@@ -296,8 +354,10 @@ export function useRoom({ code, name, asHost }: { code: string; name: string; as
       putRound(r);
       setStatus('jugando');
       send({ type: 'arm', roundId: r.id, mode: r.mode, goAt: r.goAt });
+      // Las flechitas de la planilla son de la ronda: arrancan de cero.
+      if (Object.keys(marcadorRef.current.ultimo).length) putMarcador({ ...marcadorRef.current, ultimo: {} });
     },
-    [asHost, putResult, putRound, putTurn, send],
+    [asHost, putMarcador, putResult, putRound, putTurn, send],
   );
 
   const nextTurn = useCallback(
@@ -312,9 +372,50 @@ export function useRoom({ code, name, asHost }: { code: string; name: string; as
           : { ...t, ended: 'nadie' };
       putTurn(next);
       send({ type: 'turn', turn: next });
+
+      // Puntos para quien tenía la palabra.
+      const m = marcadorRef.current;
+      const ids = res.queue[t.index]?.playerIds ?? [];
+      const { scores, delta } = aplicarTurno(m.scores, ids, ok, m.rules);
+      const ultimo = { ...m.ultimo };
+      for (const [id, d] of Object.entries(delta)) ultimo[id] = (ultimo[id] ?? 0) + d;
+      const jugadas = next.ended ? m.jugadas + 1 : m.jugadas;
+      putMarcador(conAnuncio({ ...m, scores, ultimo, jugadas }));
     },
-    [asHost, putTurn, send],
+    [asHost, conAnuncio, putMarcador, putTurn, send],
   );
+
+  const setRules = useCallback(
+    (rules: Rules) => {
+      if (!asHost) return;
+      // Cambiar las reglas puede definir (o des-definir) la partida.
+      visto.current = null;
+      putMarcador(conAnuncio({ ...marcadorRef.current, rules }), true);
+    },
+    [asHost, conAnuncio, putMarcador],
+  );
+
+  const seguir = useCallback(() => {
+    const a = marcadorRef.current.anuncio;
+    if (!asHost || !a) return;
+    visto.current = claveAnuncio(a);
+    putMarcador({ ...marcadorRef.current, anuncio: null });
+  }, [asHost, putMarcador]);
+
+  const terminar = useCallback(() => {
+    if (!asHost) return;
+    const m = marcadorRef.current;
+    const tabla = ranking(m.scores, playersRef.current.map((p) => p.id));
+    const top = tabla[0]?.puntos ?? 0;
+    const ganadores = m.anuncio?.ganadores ?? tabla.filter((x) => x.puntos === top).map((x) => x.id);
+    putMarcador({ ...m, anuncio: { ganadores, motivo: m.anuncio?.motivo ?? 'final', terminado: true } });
+  }, [asHost, putMarcador]);
+
+  const revancha = useCallback(() => {
+    if (!asHost) return;
+    visto.current = null;
+    putMarcador({ ...MARCADOR_INICIAL, rules: marcadorRef.current.rules });
+  }, [asHost, putMarcador]);
 
   const endRoom = useCallback(() => {
     if (asHost) send({ type: 'end' });
@@ -340,5 +441,10 @@ export function useRoom({ code, name, asHost }: { code: string; name: string; as
     arm,
     nextTurn,
     endRoom,
+    marcador,
+    setRules,
+    seguir,
+    terminar,
+    revancha,
   };
 }

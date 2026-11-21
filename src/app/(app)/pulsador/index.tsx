@@ -6,11 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Clay } from '@/components/clay';
 import { Icon } from '@/components/icons';
+import { HojaSalaCerca } from '@/components/pulsador-parts';
 import { Body, Button, Card, Display, Field, Label, Row, Screen, Segmented } from '@/components/ui';
 import { useApodo } from '@/features/perfil/apodo';
 import { displayName } from '@/lib/auth';
 import { haptic } from '@/lib/haptics';
-import { useSalasCerca } from '@/lib/nearby';
+import { useSalasCerca, type SalaCerca } from '@/lib/nearby';
 import { sonido } from '@/lib/sonido';
 import { makeCode, normalizeCode } from '@/lib/room';
 import { useAuth } from '@/providers/auth-provider';
@@ -33,39 +34,82 @@ export default function Pulsador() {
   const [players, setPlayers] = useState(2);
   const [mode, setMode] = useState<Mode>('libre');
 
+  const { session } = useAuth();
+  const nickname = useApodo((s) => s.nickname);
+  const [name, setName] = useState(() => {
+    const u = session?.user;
+    if (!u || u.is_anonymous) return '';
+    return displayName(u, nickname).trim().split(' ')[0].slice(0, 14);
+  });
+
+  // Se busca en la red mientras Pulsador está a la vista, en cualquiera de las
+  // dos pestañas: la sala de al lado aparece aunque estés "En la mesa".
+  const [enFoco, setEnFoco] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      setEnFoco(true);
+      return () => setEnFoco(false);
+    }, []),
+  );
+  const cerca = useSalasCerca(enFoco && !playing);
+  // Las que ya se vieron en la hoja (y se cerró) no vuelven a abrirla.
+  const [descartadas, setDescartadas] = useState<ReadonlySet<string>>(new Set());
+  const nuevas = cerca.salas.filter((s) => !descartadas.has(s.code));
+
+  const go = (sala: string, host: boolean) => {
+    const quien = name.trim() || 'Jugador';
+    haptic.tap();
+    router.push({ pathname: '/pulsador/sala', params: { code: sala, name: quien, host: host ? '1' : '0' } });
+  };
+  const descartar = (salas: SalaCerca[]) => setDescartadas((d) => new Set([...d, ...salas.map((s) => s.code)]));
+
   if (playing) return <Arena players={players} mode={mode} onExit={() => setPlaying(false)} />;
 
   return (
-    <Screen
-      title="Pulsador"
-      meta={where === 'mesa' ? 'Un teléfono, varios jugadores' : 'Un teléfono por jugador'}
-      decor={
-        <View style={{ position: 'absolute', right: -4, top: 12 }} pointerEvents="none">
-          <Clay name="pulsador" size={88} />
-        </View>
-      }
-      footer={
-        where === 'mesa' ? (
-          <Button label="Jugar" meta={`${players} zonas`} trailingIcon="arrowRight" onPress={() => setPlaying(true)} />
-        ) : undefined
-      }
-    >
-      <Segmented
-        style={{ marginTop: space.lg }}
-        options={[
-          { value: 'mesa' as Where, label: 'En la mesa' },
-          { value: 'varios' as Where, label: 'Varios equipos' },
-        ]}
-        value={where}
-        onChange={setWhere}
-      />
+    <View style={{ flex: 1 }}>
+      <Screen
+        title="Pulsador"
+        meta={where === 'mesa' ? 'Un teléfono, varios jugadores' : 'Un teléfono por jugador'}
+        decor={
+          <View style={{ position: 'absolute', right: -4, top: 12 }} pointerEvents="none">
+            <Clay name="pulsador" size={88} />
+          </View>
+        }
+        footer={
+          where === 'mesa' ? (
+            <Button label="Jugar" meta={`${players} zonas`} trailingIcon="arrowRight" onPress={() => setPlaying(true)} />
+          ) : undefined
+        }
+      >
+        <Segmented
+          style={{ marginTop: space.lg }}
+          options={[
+            { value: 'mesa' as Where, label: 'En la mesa' },
+            { value: 'varios' as Where, label: 'Varios equipos' },
+          ]}
+          value={where}
+          onChange={setWhere}
+        />
 
-      {where === 'mesa' ? (
-        <Mesa players={players} setPlayers={setPlayers} mode={mode} setMode={setMode} />
-      ) : (
-        <Varios key={codigoInicial} codigoInicial={codigoInicial} />
-      )}
-    </Screen>
+        {where === 'mesa' ? (
+          <Mesa players={players} setPlayers={setPlayers} mode={mode} setMode={setMode} />
+        ) : (
+          <Varios key={codigoInicial} codigoInicial={codigoInicial} name={name} setName={setName} cerca={cerca} go={go} />
+        )}
+      </Screen>
+
+      {nuevas.length > 0 ? (
+        <HojaSalaCerca
+          key={nuevas.map((s) => s.code).join(',')}
+          salas={nuevas}
+          onCerrar={() => descartar(nuevas)}
+          onUnirme={(s) => {
+            descartar(nuevas);
+            go(s.code, false);
+          }}
+        />
+      ) : null}
+    </View>
   );
 }
 
@@ -116,33 +160,22 @@ function Mesa({
 
 /* ───────────── Un teléfono por jugador ───────────── */
 
-function Varios({ codigoInicial }: { codigoInicial: string }) {
+function Varios({
+  codigoInicial,
+  name,
+  setName,
+  cerca,
+  go,
+}: {
+  codigoInicial: string;
+  name: string;
+  setName: (n: string) => void;
+  cerca: { salas: SalaCerca[]; error: string | null };
+  go: (sala: string, host: boolean) => void;
+}) {
   const { c } = useTheme();
-  const { session } = useAuth();
-  const nickname = useApodo((s) => s.nickname);
-  const [name, setName] = useState(() => {
-    const u = session?.user;
-    if (!u || u.is_anonymous) return '';
-    return displayName(u, nickname).trim().split(' ')[0].slice(0, 14);
-  });
   // Un código nuevo por enlace/QR remonta este componente (ver `key` arriba).
   const [code, setCode] = useState(codigoInicial);
-
-  // Sólo se busca en la red mientras esta pantalla está a la vista.
-  const [enFoco, setEnFoco] = useState(false);
-  useFocusEffect(
-    useCallback(() => {
-      setEnFoco(true);
-      return () => setEnFoco(false);
-    }, []),
-  );
-  const cerca = useSalasCerca(enFoco);
-
-  const go = (sala: string, host: boolean) => {
-    const quien = name.trim() || 'Jugador';
-    haptic.tap();
-    router.push({ pathname: '/pulsador/sala', params: { code: sala, name: quien, host: host ? '1' : '0' } });
-  };
 
   return (
     <>

@@ -82,7 +82,7 @@ function Sorteo({ juego }: { juego: TorneoGame }) {
       equipos = (juego.equiposManuales?.[bombo] ?? []).filter((e) => !usados.has(e.id));
       pool = equipos.map((e) => e.nombre);
     } else {
-      const filtrado = filtrarCatalogo(fc.catalogo.equipos, juego.filtroEquipos);
+      const filtrado = filtrarCatalogo(fc.catalogo.equipos, juego.filtroEquipos, juego.ligasEquipos);
       const estrellas = juego.bombos[bombo]?.estrellas ?? 3;
       const r = sortearEquipos(filtrado, fc.umbrales, estrellas, pendientes.length, usados);
       equipos = r.equipos;
