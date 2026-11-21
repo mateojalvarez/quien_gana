@@ -20,8 +20,12 @@ import {
   Segmented,
   Stepper,
   Tag,
+  Title,
+  Toggle,
 } from '@/components/ui';
 import { Reorderable } from '@/components/reorderable';
+import { armarParejas, DEFAULTS as BURAKO, LIMITS as BURAKO_LIMITS, nombreEquipo } from '@/features/burako/rules';
+import { DEFAULTS as CALAVERAS, LIMITS as CALAVERAS_LIMITS, maxPlayersFor } from '@/features/calaveras/rules';
 import { DEFAULTS, LIMITS, maxCards } from '@/features/corazones/rules';
 import { haptic } from '@/lib/haptics';
 import { uid } from '@/lib/id';
@@ -40,11 +44,48 @@ const MAX_PLAYERS_ANOTADOR = 8;
 const MAX_PLAYERS_GENERALA = 6;
 const ROW_H = 58;
 
+type Kind = 'anotador' | 'corazones' | 'generala' | 'burako' | 'calaveras';
+const KINDS_NUEVA: Kind[] = ['anotador', 'corazones', 'generala', 'burako', 'calaveras'];
+
+const NOMBRE: Record<Kind, string> = {
+  anotador: 'Anotador',
+  corazones: 'Corazones',
+  generala: 'Generala',
+  burako: 'Burako',
+  calaveras: 'Calaveras y piratas',
+};
+
+const EJEMPLO: Record<Kind, string> = {
+  anotador: 'Truco del viernes',
+  corazones: 'Corazones en lo de Juli',
+  generala: 'Generala del domingo',
+  burako: 'Burako en lo de la abuela',
+  calaveras: 'Piratas del sábado',
+};
+
+const CLAY = { anotador: 'lapiz', corazones: 'corazon', generala: 'generala', burako: 'esferas', calaveras: 'abanicoCartas' } as const;
+
+type Extras = { edicionNueva: boolean; expansion: boolean };
+
+function topeDe(kind: Kind, modo: 'individual' | 'parejas', extras: Extras) {
+  switch (kind) {
+    case 'corazones':
+      return LIMITS.maxPlayers;
+    case 'generala':
+      return MAX_PLAYERS_GENERALA;
+    case 'burako':
+      return modo === 'parejas' ? BURAKO_LIMITS.integrantesParejas : BURAKO_LIMITS.maxIndividual;
+    case 'calaveras':
+      return maxPlayersFor(extras);
+    default:
+      return MAX_PLAYERS_ANOTADOR;
+  }
+}
+
 export default function NuevaPartida() {
   const { kind: kindParam } = useLocalSearchParams<{ kind?: string }>();
   // Truco no pasa por acá: tiene su propia pantalla, con equipos en vez de jugadores.
-  const kind: 'anotador' | 'corazones' | 'generala' =
-    kindParam === 'corazones' ? 'corazones' : kindParam === 'generala' ? 'generala' : 'anotador';
+  const kind: Kind = KINDS_NUEVA.includes(kindParam as Kind) ? (kindParam as Kind) : 'anotador';
   const { c, scheme } = useTheme();
   const overlay = useOverlay();
   const create = useGames((s) => s.create);
@@ -67,8 +108,7 @@ export default function NuevaPartida() {
   const [title, setTitle] = useState('');
   const [usandoGrupo, setUsandoGrupo] = useState(delGrupo.length >= 2);
   const [players, setPlayers] = useState<{ id: string; name: string }[]>(() => {
-    const tope = kind === 'corazones' ? LIMITS.maxPlayers : kind === 'generala' ? MAX_PLAYERS_GENERALA : MAX_PLAYERS_ANOTADOR;
-    const nombres = delGrupo.slice(0, tope);
+    const nombres = delGrupo.slice(0, topeDe(kind, 'individual', { edicionNueva: true, expansion: false }));
     return nombres.length >= 2 ? nombres.map((name) => ({ id: uid(), name })) : vacios();
   });
   const [target, setTarget] = useState<number | null>(kind === 'anotador' ? 100 : null);
@@ -76,14 +116,39 @@ export default function NuevaPartida() {
   const [totalRounds, setTotalRounds] = useState<number>(DEFAULTS.totalRounds);
   const [decks, setDecks] = useState<number>(DEFAULTS.decks);
   const [bonusFromRound, setBonusFromRound] = useState<number>(DEFAULTS.bonusFromRound);
+  const [modo, setModoState] = useState<'individual' | 'parejas'>('individual');
+  const [meta, setMeta] = useState<number>(BURAKO.target);
+  const [extras, setExtrasState] = useState<Extras>({ edicionNueva: true, expansion: false });
+  const [rondasPiratas, setRondasPiratas] = useState<number>(CALAVERAS.totalRounds);
 
   const named = players.map((p) => p.name.trim()).filter(Boolean);
   const cards = maxCards(named.length, decks);
-  const canCreate = named.length >= 2;
+  const canCreate =
+    kind === 'burako' && modo === 'parejas' ? named.length === BURAKO_LIMITS.integrantesParejas : named.length >= 2;
 
   // Las rondas no limitan a los jugadores ni al revés: cada ronda se reparte de
   // nuevo, así que jugadores y mazos sólo definen el máximo de bazas por ronda.
-  const maxPlayers = kind === 'corazones' ? LIMITS.maxPlayers : kind === 'generala' ? MAX_PLAYERS_GENERALA : MAX_PLAYERS_ANOTADOR;
+  const maxPlayers = topeDe(kind, modo, extras);
+
+  /** Al cambiar el tope, la lista se recorta o se completa con lugares vacíos. */
+  function ajustarLugares(tope: number, minimo: number) {
+    setPlayers((ps) => {
+      const next = ps.slice(0, tope);
+      while (next.length < minimo) next.push({ id: uid(), name: '' });
+      return next;
+    });
+  }
+
+  function setModo(m: 'individual' | 'parejas') {
+    setModoState(m);
+    const tope = topeDe('burako', m, extras);
+    ajustarLugares(tope, m === 'parejas' ? tope : 2);
+  }
+
+  function setExtras(e: Extras) {
+    setExtrasState(e);
+    ajustarLugares(topeDe('calaveras', modo, e), 2);
+  }
   const maxRounds = LIMITS.maxRounds;
 
   const otroObjetivo = target != null && !OBJETIVOS.includes(target as (typeof OBJETIVOS)[number]);
@@ -120,10 +185,23 @@ export default function NuevaPartida() {
   }
 
   function submit() {
-    const nombreKind = { anotador: 'Partida', corazones: 'Corazones', generala: 'Generala' }[kind];
+    const nombreKind = kind === 'anotador' ? 'Partida' : NOMBRE[kind];
     const fallbackTitle = `${nombreKind} ${new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}`;
+    const parejas = armarParejas(named);
     const id =
-      kind === 'generala'
+      kind === 'burako'
+        ? create({
+            kind,
+            title: title.trim() || fallbackTitle,
+            modo,
+            target: meta,
+            ...(modo === 'parejas'
+              ? { players: parejas.map(nombreEquipo), integrantes: parejas }
+              : { players: named }),
+          })
+        : kind === 'calaveras'
+        ? create({ kind, title: title.trim() || fallbackTitle, players: named, totalRounds: rondasPiratas, extras })
+        : kind === 'generala'
         ? create({ kind, title: title.trim() || fallbackTitle, players: named })
         : kind === 'anotador'
         ? create({ kind, title: title.trim() || fallbackTitle, players: named, target, lowestWins })
@@ -136,22 +214,22 @@ export default function NuevaPartida() {
             bonusFromRound: Math.min(bonusFromRound, totalRounds),
           });
     haptic.success();
-    router.replace(kind === 'anotador' ? `/anotador/${id}` : kind === 'generala' ? `/generala/${id}` : `/corazones/${id}`);
+    router.replace(`/${kind}/${id}`);
   }
 
   return (
     <Screen
       title="Nueva partida"
-      meta={{ anotador: 'Anotador', corazones: 'Corazones', generala: 'Generala' }[kind]}
+      meta={NOMBRE[kind]}
       decor={
         <View style={{ position: 'absolute', right: -8, top: 4 }} pointerEvents="none">
-          <Clay name={kind === 'corazones' ? 'corazon' : kind === 'generala' ? 'generala' : 'lapiz'} size={96} />
+          <Clay name={CLAY[kind]} size={96} />
         </View>
       }
       footer={
         <Button
           label={kind === 'generala' ? 'Empezar' : 'Repartir'}
-          meta={canCreate ? `${named.length} jugadores` : undefined}
+          meta={canCreate ? (kind === 'burako' && modo === 'parejas' ? '2 parejas' : `${named.length} jugadores`) : undefined}
           trailingIcon="arrowRight"
           disabled={!canCreate}
           onPress={submit}
@@ -162,7 +240,7 @@ export default function NuevaPartida() {
         label="Nombre de la partida (opcional)"
         value={title}
         onChangeText={setTitle}
-        placeholder={{ anotador: 'Truco del viernes', corazones: 'Corazones en lo de Juli', generala: 'Generala del domingo' }[kind]}
+        placeholder={EJEMPLO[kind]}
         style={{ marginTop: space.lg }}
       />
 
@@ -237,8 +315,9 @@ export default function NuevaPartida() {
                 returnKeyType="next"
                 autoCapitalize="words"
               />
-              {kind === 'corazones' && i === 0 && name.trim() ? <Tag label="Reparte" /> : null}
-              {players.length > 2 ? (
+              {(kind === 'corazones' || kind === 'calaveras') && i === 0 && name.trim() ? <Tag label="Reparte" /> : null}
+              {kind === 'burako' && modo === 'parejas' ? <Tag label={i % 2 === 0 ? 'Pareja A' : 'Pareja B'} /> : null}
+              {players.length > 2 && !(kind === 'burako' && modo === 'parejas') ? (
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Quitar ${name.trim() || `jugador ${i + 1}`}`}
@@ -282,9 +361,13 @@ export default function NuevaPartida() {
                 Agregar jugador
               </Label>
             </Pressable>
-          ) : kind === 'corazones' ? (
+          ) : kind === 'corazones' || kind === 'calaveras' ? (
             <Body color={c.muted} style={{ fontSize: 13.5, lineHeight: 19 }}>
-              {`Son ${LIMITS.maxPlayers} jugadores como máximo.`}
+              {`Son ${maxPlayers} jugadores como máximo.`}
+            </Body>
+          ) : kind === 'burako' && modo === 'parejas' ? (
+            <Body color={c.muted} style={{ fontSize: 13.5, lineHeight: 19 }}>
+              Sentados enfrentados: el 1.º y el 3.º contra el 2.º y el 4.º. Arrastrá para cambiar las parejas.
             </Body>
           ) : null}
         </View>
@@ -293,7 +376,69 @@ export default function NuevaPartida() {
       <View style={{ marginTop: space.xxl, display: kind === 'generala' ? 'none' : 'flex' }}>
         <SectionHead title="Reglas" />
 
-        {kind === 'corazones' ? (
+        {kind === 'burako' ? (
+          <>
+            <Label style={{ marginBottom: space.sm }}>Cómo juegan</Label>
+            <Segmented
+              options={[
+                { value: 'individual', label: 'Individual' },
+                { value: 'parejas', label: 'En parejas' },
+              ]}
+              value={modo}
+              onChange={setModo}
+            />
+            <Card color={palette.tomate} style={{ marginTop: space.lg, padding: space.lg, gap: space.md }}>
+              <Label color={onPlayerColor} style={{ fontSize: 14 }}>
+                Gana el que llega a
+              </Label>
+              <Stepper
+                value={meta}
+                onChange={setMeta}
+                min={BURAKO_LIMITS.minTarget}
+                max={BURAKO_LIMITS.maxTarget}
+                step={BURAKO_LIMITS.stepTarget}
+                size={36}
+                onColored
+              />
+            </Card>
+            <Body color={c.muted} style={{ fontSize: 13.5, lineHeight: 19, marginTop: space.sm }}>
+              Canasta pura 200, impura 100, cortar 100, más las fichas (pueden dar negativo). No levantar el muerto resta 100.
+            </Body>
+          </>
+        ) : kind === 'calaveras' ? (
+          <>
+            <Card color={palette.salvia} style={{ padding: space.lg, gap: space.md }}>
+              <Label color={onPlayerColor} style={{ fontSize: 14 }}>
+                Rondas
+              </Label>
+              <Stepper
+                value={rondasPiratas}
+                onChange={setRondasPiratas}
+                min={1}
+                max={CALAVERAS_LIMITS.maxRounds}
+                size={36}
+                onColored
+              />
+            </Card>
+            <View style={{ marginTop: space.lg }}>
+              <FilaToggle
+                titulo="Cartas de la edición nueva"
+                detalle="Botín, Kraken, Ballena blanca y la apuesta del Rascal"
+                value={extras.edicionNueva}
+                onChange={(v) => setExtras({ ...extras, edicionNueva: v })}
+              />
+              <FilaToggle
+                titulo="Paquete de expansión"
+                detalle="Los 7 y 8, el Primer oficial y Davy Jones"
+                value={extras.expansion}
+                onChange={(v) => setExtras({ ...extras, expansion: v })}
+              />
+            </View>
+            <Body color={c.muted} style={{ fontSize: 13.5, lineHeight: 19, marginTop: space.sm }}>
+              En la ronda N se reparten N cartas. Acertar paga 20 por baza pedida (pedir 0 paga 10 por carta); errar resta 10 por baza de diferencia. Los bonus sólo cuentan si se acierta.
+            </Body>
+          </>
+        ) : kind === 'corazones' ? (
           <>
             <Row style={{ gap: space.md, alignItems: 'stretch' }}>
               <Card color={palette.salvia} style={{ flex: 1, padding: space.lg, gap: space.md }}>
@@ -387,6 +532,28 @@ export default function NuevaPartida() {
         )}
       </View>
     </Screen>
+  );
+}
+
+function FilaToggle({
+  titulo,
+  detalle,
+  value,
+  onChange,
+}: {
+  titulo: string;
+  detalle: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <Row style={{ minHeight: 62, justifyContent: 'space-between', gap: space.lg }}>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Title style={{ fontSize: 16 }}>{titulo}</Title>
+        <Label>{detalle}</Label>
+      </View>
+      <Toggle value={value} onChange={onChange} label={titulo} />
+    </Row>
   );
 }
 

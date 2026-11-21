@@ -3,7 +3,22 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { DatosTorneo } from '@/features/torneo/types';
-import type { AnotadorGame, CorazonesGame, CorazonesRound, Game, GeneralaGame, Player, TorneoGame, TrucoGame, TrucoMove } from '@/features/types';
+import type {
+  AnotadorGame,
+  BurakoGame,
+  BurakoRound,
+  CalaverasGame,
+  CalaverasRound,
+  CorazonesGame,
+  CorazonesRound,
+  Game,
+  GeneralaGame,
+  Player,
+  TorneoGame,
+  TrucoGame,
+  TrucoMove,
+} from '@/features/types';
+import { KINDS } from '@/features/types';
 import { movePossible } from '@/features/truco/rules';
 import { uid } from '@/lib/id';
 
@@ -11,7 +26,10 @@ type NewGameInput =
   | { kind: 'anotador'; title: string; players: string[]; target: number | null; lowestWins: boolean }
   | { kind: 'corazones'; title: string; players: string[]; totalRounds: number; decks: number; bonusFromRound: number }
   | { kind: 'truco'; title: string; players: string[]; target: 15 | 30; matches: boolean }
-  | { kind: 'generala'; title: string; players: string[] };
+  | { kind: 'generala'; title: string; players: string[] }
+  /** Parejas: `players` son los nombres de los equipos y `integrantes` va en el mismo orden. */
+  | { kind: 'burako'; title: string; players: string[]; modo: 'individual' | 'parejas'; integrantes?: string[][]; target: number }
+  | { kind: 'calaveras'; title: string; players: string[]; totalRounds: number; extras: CalaverasGame['extras'] };
 
 type GamesState = {
   games: Record<string, Game>;
@@ -26,6 +44,10 @@ type GamesState = {
   addAnotadorRound: (id: string, round: Record<string, number>) => void;
   addCorazonesRound: (id: string, round: CorazonesRound) => void;
   updateCorazonesRound: (id: string, index: number, round: CorazonesRound) => void;
+  addBurakoRound: (id: string, round: BurakoRound) => void;
+  updateBurakoRound: (id: string, index: number, round: BurakoRound) => void;
+  addCalaverasRound: (id: string, round: CalaverasRound) => void;
+  updateCalaverasRound: (id: string, index: number, round: CalaverasRound) => void;
   undoRound: (id: string) => void;
   /** Truco: un toque de +1 o −1 a un equipo. */
   addTrucoMove: (id: string, move: TrucoMove) => void;
@@ -73,7 +95,20 @@ export const useGames = create<GamesState>()(
         const players: Player[] = input.players.map((name) => ({ id: uid(), name }));
         const base = { id, title: input.title, players, createdAt: now(), updatedAt: now(), finishedAt: null };
         const game: Game =
-          input.kind === 'generala'
+          input.kind === 'burako'
+            ? ({
+                ...base,
+                kind: 'burako',
+                modo: input.modo,
+                ...(input.integrantes
+                  ? { integrantes: Object.fromEntries(players.map((p, i) => [p.id, input.integrantes?.[i] ?? []])) }
+                  : {}),
+                rounds: [],
+                target: input.target,
+              } satisfies BurakoGame)
+            : input.kind === 'calaveras'
+            ? ({ ...base, kind: 'calaveras', rounds: [], totalRounds: input.totalRounds, extras: input.extras } satisfies CalaverasGame)
+            : input.kind === 'generala'
             ? ({ ...base, kind: 'generala', sheets: Object.fromEntries(players.map((p) => [p.id, {}])), turn: 0, servedWinner: null } satisfies GeneralaGame)
             : input.kind === 'truco'
             ? ({ ...base, kind: 'truco', moves: [], target: input.target, matches: input.matches } satisfies TrucoGame)
@@ -122,6 +157,28 @@ export const useGames = create<GamesState>()(
         if (index < 0 || index >= g.rounds.length) return;
         const rounds = g.rounds.map((r, i) => (i === index ? round : r));
         set((s) => touch(s, { ...g, rounds }));
+      },
+
+      addBurakoRound: (id, round) => {
+        const g = get().games[id];
+        if (g?.kind === 'burako') set((s) => touch(s, { ...g, rounds: [...g.rounds, round] }));
+      },
+
+      updateBurakoRound: (id, index, round) => {
+        const g = get().games[id];
+        if (g?.kind !== 'burako' || index < 0 || index >= g.rounds.length) return;
+        set((s) => touch(s, { ...g, rounds: g.rounds.map((r, i) => (i === index ? round : r)) }));
+      },
+
+      addCalaverasRound: (id, round) => {
+        const g = get().games[id];
+        if (g?.kind === 'calaveras') set((s) => touch(s, { ...g, rounds: [...g.rounds, round] }));
+      },
+
+      updateCalaverasRound: (id, index, round) => {
+        const g = get().games[id];
+        if (g?.kind !== 'calaveras' || index < 0 || index >= g.rounds.length) return;
+        set((s) => touch(s, { ...g, rounds: g.rounds.map((r, i) => (i === index ? round : r)) }));
       },
 
       /** Deshacer: la última ronda, o en Truco el último toque. */
@@ -197,6 +254,9 @@ export const useGames = create<GamesState>()(
           const games = { ...s.games };
           for (const r of remote) {
             if (s.pendingDeletes.includes(r.id)) continue;
+            // Una partida de un juego que esta versión no conoce (creada desde una
+            // versión más nueva) se deja en la nube sin tocarla.
+            if (!KINDS.includes(r.kind)) continue;
             const local = games[r.id];
             // last-write-wins por updatedAt
             if (!local || new Date(r.updatedAt) > new Date(local.updatedAt)) games[r.id] = r;

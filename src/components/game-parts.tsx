@@ -11,7 +11,14 @@ import { Clay } from './clay';
 import { useOverlay } from './overlay';
 import { Avatar, Bar, Card, Display, Label, Num, Row, Title } from './ui';
 
-const NOMBRE = { anotador: 'Anotador', corazones: 'Corazones', truco: 'Truco', generala: 'Generala' } as const;
+const NOMBRE = {
+  anotador: 'Anotador',
+  corazones: 'Corazones',
+  truco: 'Truco',
+  generala: 'Generala',
+  burako: 'Burako',
+  calaveras: 'Calaveras y piratas',
+} as const;
 
 function resumen(game: Game): string {
   if (game.kind === 'truco') return `Truco · ${trucoSummary(game)}`;

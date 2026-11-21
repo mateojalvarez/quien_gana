@@ -10,6 +10,8 @@ import { TAB_BAR_SPACE } from '@/components/tab-bar';
 import { Avatar, Body, Card, Display, Label, Num, Row, Rule, SectionHead, Tag, Title } from '@/components/ui';
 import { standings as anotadorStandings } from '@/features/anotador/logic';
 import type { Tool } from '@/features/catalog';
+import { standings as burakoStandings } from '@/features/burako/rules';
+import { standings as calaverasStandings } from '@/features/calaveras/rules';
 import { standings as corazonesStandings } from '@/features/corazones/rules';
 import { posiciones as generalaPosiciones, rondas as generalaRondas } from '@/features/generala/rules';
 import { nombreDe, resumen as torneoResumen, tablaLiga } from '@/features/torneo/rules';
@@ -44,7 +46,14 @@ function leaderOf(g: Game) {
     const i = a >= b ? 0 : 1;
     return { player: g.players[i], total: Math.max(a, b) };
   }
-  const s = g.kind === 'anotador' ? anotadorStandings(g) : corazonesStandings(g);
+  const s =
+    g.kind === 'anotador'
+      ? anotadorStandings(g)
+      : g.kind === 'burako'
+        ? burakoStandings(g)
+        : g.kind === 'calaveras'
+          ? calaverasStandings(g)
+          : corazonesStandings(g);
   return g.rounds.length ? s[0] : null;
 }
 
@@ -58,7 +67,14 @@ const jugadas = (g: Game) =>
       ? Object.values(g.sheets).reduce((n, s) => n + Object.keys(s).length, 0)
       : g.rounds.length;
 
-const NOMBRE = { anotador: 'Anotador', corazones: 'Corazones', truco: 'Truco', generala: 'Generala' } as const;
+const NOMBRE = {
+  anotador: 'Anotador',
+  corazones: 'Corazones',
+  truco: 'Truco',
+  generala: 'Generala',
+  burako: 'Burako',
+  calaveras: 'Calaveras y piratas',
+} as const;
 
 function detalle(g: Game): string {
   if (g.kind === 'torneo') {
@@ -80,13 +96,7 @@ const hrefOf = (g: Game) =>
     ? g.fase === 'sorteo'
       ? `/torneo/${g.id}/sorteo`
       : `/torneo/${g.id}`
-    : g.kind === 'anotador'
-    ? `/anotador/${g.id}`
-    : g.kind === 'truco'
-      ? `/truco/${g.id}`
-      : g.kind === 'generala'
-        ? `/generala/${g.id}`
-        : `/corazones/${g.id}`) as Href;
+    : `/${g.kind}/${g.id}`) as Href;
 
 function fechaDeHoy() {
   const s = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'short' });
@@ -201,7 +211,11 @@ export default function Inicio() {
                     ? 'cartasEspanolas'
                     : enCurso.kind === 'generala'
                       ? 'generala'
-                      : 'lapiz'
+                      : enCurso.kind === 'burako'
+                        ? 'esferas'
+                        : enCurso.kind === 'calaveras'
+                          ? 'abanicoCartas'
+                          : 'lapiz'
               }
               size={80}
               style={{ position: 'absolute', right: space.md, top: space.md }}

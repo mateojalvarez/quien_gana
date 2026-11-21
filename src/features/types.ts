@@ -69,12 +69,60 @@ export type GeneralaGame = GameBase & {
   servedWinner?: string | null;
 };
 
+/** Burako: lo que anota un lado (jugador o pareja) en una ronda. */
+export type BurakoLado = {
+  puras: number;
+  impuras: number;
+  /** Fichas en mesa menos fichas en mano: puede ser negativo. */
+  fichas: number;
+  /** No levantó el muerto: resta. */
+  sinMuerto: boolean;
+};
+
+export type BurakoRound = {
+  lados: Record<string, BurakoLado>;
+  /** Id del lado que cortó en la ronda, si alguno cortó. */
+  corto: string | null;
+};
+
+export type BurakoGame = GameBase & {
+  kind: 'burako';
+  /** En parejas, `players` son los dos equipos (como en Truco). */
+  modo: 'individual' | 'parejas';
+  /** Parejas: teamId → nombres de los integrantes. */
+  integrantes?: Record<string, string[]>;
+  rounds: BurakoRound[];
+  target: number;
+};
+
+/** Calaveras y piratas: pedidos, bazas, bonus y apuesta por ronda. */
+export type CalaverasRound = {
+  bids: Record<string, number>;
+  tricks: Record<string, number>;
+  /** playerId → clave de bonus → cantidad. Las claves viven en features/calaveras. */
+  bonus: Record<string, Record<string, number>>;
+  /** Apuesta del Rascal (edición nueva): 0, 10 o 20. */
+  apuesta: Record<string, number>;
+  /** Salió el Kraken: una baza se pierde y las bazas suman una menos. */
+  kraken: boolean;
+};
+
+export type CalaverasGame = GameBase & {
+  kind: 'calaveras';
+  rounds: CalaverasRound[];
+  totalRounds: number;
+  extras: { edicionNueva: boolean; expansion: boolean };
+};
+
 /** Generador de torneos: liga, grupos + playoff o playoff. Todo el estado en features/torneo. */
 export type TorneoGame = GameBase & DatosTorneo & { kind: 'torneo' };
 
-export type Game = AnotadorGame | CorazonesGame | TrucoGame | GeneralaGame | TorneoGame;
+export type Game = AnotadorGame | CorazonesGame | TrucoGame | GeneralaGame | TorneoGame | BurakoGame | CalaverasGame;
+
+export const KINDS: readonly Game['kind'][] = ['anotador', 'corazones', 'truco', 'generala', 'torneo', 'burako', 'calaveras'];
 export type GameKind = Game['kind'];
 
 /** Las partidas con rondas; Truco queda afuera porque cuenta toques. */
-export type RoundGame = AnotadorGame | CorazonesGame;
-export const hasRounds = (g: Game): g is RoundGame => g.kind === 'anotador' || g.kind === 'corazones';
+export type RoundGame = AnotadorGame | CorazonesGame | BurakoGame | CalaverasGame;
+export const hasRounds = (g: Game): g is RoundGame =>
+  g.kind === 'anotador' || g.kind === 'corazones' || g.kind === 'burako' || g.kind === 'calaveras';
