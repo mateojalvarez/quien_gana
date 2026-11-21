@@ -212,9 +212,9 @@ export default function Inicio() {
                     : enCurso.kind === 'generala'
                       ? 'generala'
                       : enCurso.kind === 'burako'
-                        ? 'esferas'
+                        ? 'burako'
                         : enCurso.kind === 'calaveras'
-                          ? 'abanicoCartas'
+                          ? 'calavera'
                           : 'lapiz'
               }
               size={80}

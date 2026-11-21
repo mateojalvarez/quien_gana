@@ -63,7 +63,7 @@ const EJEMPLO: Record<Kind, string> = {
   calaveras: 'Piratas del sábado',
 };
 
-const CLAY = { anotador: 'lapiz', corazones: 'corazon', generala: 'generala', burako: 'esferas', calaveras: 'abanicoCartas' } as const;
+const CLAY = { anotador: 'lapiz', corazones: 'corazon', generala: 'generala', burako: 'burako', calaveras: 'calavera' } as const;
 
 type Extras = { edicionNueva: boolean; expansion: boolean };
 
